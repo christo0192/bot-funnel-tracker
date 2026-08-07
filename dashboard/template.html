@@ -212,6 +212,12 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="card"><div class="cardhead"><div><h3>Disqualification — reclaimable vs hard</h3>
       <div class="hint">How much DQ a PSA/human could still recover</div></div></div><div id="dqRecover"></div></div>
   </div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>Qualified vs disqualified by day of week</h3>
+      <div class="hint">By the bot's first-call day (Mon–Sun). Time-of-day isn't recorded in the data.</div></div></div><div id="dowCard"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Call volume by day of week</h3>
+      <div class="hint">Where the calling effort lands across the week</div></div></div><div id="dowVol"></div></div>
+  </div>
 
   <div class="sectionlabel">Trends</div>
   <div class="grid c2b">
@@ -513,7 +519,7 @@ function renderDonut(){
 }
 
 /* ---------- segment table ---------- */
-const DIM_LABELS={owner:'Pod / owner',city:'City',variant:'A/B variant',source:'Channel',webinar:'Webinar',role:'Role domain',exp:'Experience'};
+const DIM_LABELS={owner:'Pod / owner',city:'City',variant:'A/B variant',source:'Channel',webinar:'Webinar',role:'Role domain',exp:'Experience',dow:'Day of week'};
 function renderDimSeg(){
   document.getElementById('dimSeg').innerHTML=Object.keys(DIMS).map(k=>
     `<button data-d="${k}" class="${k===DIM?'on':''}">${DIM_LABELS[k]||k}</button>`).join('');
@@ -542,7 +548,7 @@ function renderSeg(){
 
 /* ---------- qualification intelligence ---------- */
 let QDIM='role';
-const QDIM_LABELS={role:'Role',exp:'Experience',source:'Channel',owner:'Pod',webinar:'Webinar',city:'City'};
+const QDIM_LABELS={role:'Role',exp:'Experience',source:'Channel',owner:'Pod',dow:'Day of week',webinar:'Webinar',city:'City'};
 function renderABTest(){
   const ix=idxRange(), rows=sumDim('variant',ix), by={}; rows.forEach(r=>by[r.name]=r.v);
   const c=by['control']||new Array(M.LM).fill(0), t=by['test']||new Array(M.LM).fill(0);
@@ -604,6 +610,24 @@ function renderQualDrivers(){
       <span class="bv num">${(r.q*100).toFixed(1)}%</span></div>`).join('')+'</div>'+
     `<div class="legend"><span><i style="background:${gc}"></i>Qualified %</span><span><i style="background:${rc}"></i>Disqualified %</span></div>`;
   bindTip('qualDrivers','.qrow');
+}
+function renderDOW(){
+  const ix=idxRange();
+  const rows=sumDim('dow',ix).map(r=>({name:r.name,leads:r.v[LX.leads],q:r.v[LX.qual]/(r.v[LX.leads]||1),d:r.v[LX.dq]/(r.v[LX.leads]||1)}));
+  const mx=Math.max(...rows.flatMap(r=>[r.q,r.d]),0.01), gc=cssv('--good'), rc=cssv('--crit');
+  document.getElementById('dowCard').innerHTML='<div class="blist">'+rows.map(r=>
+    `<div class="qrow" data-tip="${r.name}|${nf(r.leads)} leads|Qualified ${(r.q*100).toFixed(1)}%|Disqualified ${(r.d*100).toFixed(1)}%">
+      <span class="bn">${r.name}</span>
+      <div class="qbars"><div class="btrack"><span style="width:${(r.q/mx*100).toFixed(0)}%;background:${gc}"></span></div>
+      <div class="btrack"><span style="width:${(r.d/mx*100).toFixed(0)}%;background:${rc}"></span></div></div>
+      <span class="bv num">${(r.q*100).toFixed(1)}%</span></div>`).join('')+'</div>'+
+    `<div class="legend"><span><i style="background:${gc}"></i>Qualified %</span><span><i style="background:${rc}"></i>Disqualified %</span></div>`;
+  bindTip('dowCard','.qrow');
+}
+function renderDOWVol(){
+  const ix=idxRange(), rows=sumDim('dow',ix);
+  const pairs=rows.map(r=>[r.name,r.v[LX.leads]]);
+  barsInto('dowVol',pairs,{color:()=>cssv('--seq-3')});
 }
 function renderDQRecover(){
   const ix=idxRange(), dq=sumHist('dq',ix), total=dq.reduce((s,v)=>s+v,0)||1;
@@ -693,7 +717,7 @@ function renderAll(){
   const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
   document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
   renderKPI();renderFunnel();renderImpact();
-  renderABTest();renderAnswerDepth();renderQdimSeg();renderQualDrivers();renderDQRecover();
+  renderABTest();renderAnswerDepth();renderQdimSeg();renderQualDrivers();renderDQRecover();renderDOW();renderDOWVol();
   renderTrends();renderMixes();renderDonut();renderSG();renderDimSeg();renderSeg();
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});

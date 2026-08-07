@@ -108,8 +108,10 @@ SELECT_COLS = [
     "pa_call_offered","pa_call_accepted","flag_pa_ever_called","flag_pa_ever_connected",
     "dcd_flag","vc_done_flag","sale_flag","wa_flag","rte_flag","complaint_raised",
     "flag_bot_qual_pa_no_call","flag_bot_qual_dcd_done","flag_bot_qual_pa_connected",
-    "lead_email","work_ex","utm_source","pa_name",
+    "lead_email","work_ex","utm_source","pa_name","bot_first_attempt_date",
 ]
+
+DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]  # weekday of the bot's first call
 
 def b(v):  # truthy int flag
     return 1 if v == 1 else 0
@@ -150,6 +152,9 @@ def main():
         dims[name]["labels"] = labels
         dims[name]["_map"] = {lab: j for j, lab in enumerate(labels)}
         dims[name]["d"] = [[[0]*LM for _ in labels] for _ in range(ND)]
+    # computed dimension: day-of-week of the bot's first call (falls back to lead_date)
+    dims["dow"] = {"labels": DOW, "_map": {l: j for j, l in enumerate(DOW)},
+                   "d": [[[0]*LM for _ in DOW] for _ in range(ND)]}
 
     def add(vec, r):
         vec[X["leads"]] += 1
@@ -199,6 +204,8 @@ def main():
         for name, col in DIMS_SRC.items():
             j = dims[name]["_map"][(r[col] or "(blank)")]
             add_dim(dims[name]["d"][i][j], r)
+        cday = r["bot_first_attempt_date"] or r["lead_date"]
+        add_dim(dims["dow"]["d"][i][cday.weekday()], r)
         # histograms
         if r["bot_bucket"] in LBL: hist["buk"][i][LBL[r["bot_bucket"]]] += 1
         dqr = r["disqualification_reason"]
@@ -235,7 +242,7 @@ def main():
                  "ttc": TTC, "bpa": BPA, "sg": SG, "att": ATT,
                  "X": XCOLS, "LX": LXCOLS, "M": M, "LM": LM},
         "daily": daily,
-        "dims": {name: {"v": dims[name]["labels"], "d": dims[name]["d"]} for name in DIMS_SRC},
+        "dims": {name: {"v": dims[name]["labels"], "d": dims[name]["d"]} for name in dims},
         "hist": hist,
         "leadCols": LEAD_COLS,
         "leads": leads_out,
