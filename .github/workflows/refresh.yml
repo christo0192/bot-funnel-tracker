@@ -41,15 +41,22 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install Vercel CLI
+        run: npm i -g vercel@58
+
       - name: Deploy to Vercel (production)
+        working-directory: site
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          mkdir -p site/.vercel
-          printf '{"projectId":"%s","orgId":"%s"}' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" > site/.vercel/project.json
-          npx --yes vercel@58 deploy --prod --yes --cwd site --token "$VERCEL_TOKEN"
+          set -e
+          # Canonical CI recipe: pull the project settings (uses the ORG/PROJECT env
+          # ids), then deploy the prebuilt static folder. Non-interactive, no hang.
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          url=$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")
+          echo "Deployed: $url"
 
       - name: Summary
         run: echo "Deployed https://bot-funnel-tracker.vercel.app at $(date -u +%FT%TZ)" >> "$GITHUB_STEP_SUMMARY"
