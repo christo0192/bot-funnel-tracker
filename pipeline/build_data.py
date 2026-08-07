@@ -108,7 +108,7 @@ SELECT_COLS = [
     "pa_call_offered","pa_call_accepted","flag_pa_ever_called","flag_pa_ever_connected",
     "dcd_flag","vc_done_flag","sale_flag","wa_flag","rte_flag","complaint_raised",
     "flag_bot_qual_pa_no_call","flag_bot_qual_dcd_done","flag_bot_qual_pa_connected",
-    "lead_email","work_ex","utm_source",
+    "lead_email","work_ex","utm_source","pa_name",
 ]
 
 def b(v):  # truthy int flag
@@ -212,18 +212,20 @@ def main():
         a = min(max(r["best_questions_answered"] or 0, 0), 9)
         hist["ans"][i][a] += 1
 
-    # sample rows (latest 60 attempted, for the lead table)
-    sample = []
-    for r in sorted([x for x in rows if b(x["bot_attempted"])],
-                    key=lambda x: x["lead_date"], reverse=True)[:60]:
-        sample.append({
-            "date": day_off[r["lead_date"]], "pod": r["pod"], "city": r["city"],
-            "source": r["channel"], "role": r["role_domain"], "exp": r["work_ex_category"],
-            "bucket": r["bot_bucket"], "ttc": r["time_to_connect_bucket"],
-            "outcome": r["phase2_outcome"] or ("Bot Qualified" if b(r["bot_qualified"]) else
-                       (r["disqualification_reason"] or "—")),
-            "qual": b(r["bot_qualified"]), "sale": b(r["sale_flag"]),
-        })
+    # Full lead-level table (ALL leads), columnar to keep the payload small.
+    # Powers the searchable + paginated + CSV-exportable lead explorer.
+    LEAD_COLS = ["email", "date", "pod", "pa", "status", "bucket", "outcome", "att", "qual", "sale"]
+    leads_out = []
+    for r in rows:
+        outcome = r["phase2_outcome"] or ("Bot Qualified" if b(r["bot_qualified"])
+                   else (r["disqualification_reason"] or ""))
+        leads_out.append([
+            r["lead_email"] or "", day_off[r["lead_date"]], r["pod"] or "", r["pa_name"] or "",
+            r["lead_status"] or "", r["bot_bucket"] or "", outcome,
+            r["total_call_attempts"] or 0, b(r["bot_qualified"]), b(r["sale_flag"]),
+        ])
+    # newest first so the default view reads like "recent calls"
+    leads_out.sort(key=lambda x: x[1], reverse=True)
 
     out = {
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
@@ -235,7 +237,8 @@ def main():
         "daily": daily,
         "dims": {name: {"v": dims[name]["labels"], "d": dims[name]["d"]} for name in DIMS_SRC},
         "hist": hist,
-        "sample": sample,
+        "leadCols": LEAD_COLS,
+        "leads": leads_out,
     }
     outpath = os.path.abspath(args.out)
     with open(outpath, "w", encoding="utf-8") as f:

@@ -130,6 +130,18 @@ svg{display:block;width:100%;overflow:visible}
 .sectionlabel{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);
   font-weight:660;margin:22px 2px 4px;display:flex;align-items:center;gap:10px}
 .sectionlabel::after{content:"";flex:1;height:1px;background:var(--line)}
+.explorer{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.qin{border:1px solid var(--line);background:var(--surf-2);color:var(--ink);font:inherit;font-size:12.5px;
+  padding:6px 10px;border-radius:8px;min-width:150px;flex:1 1 150px;max-width:230px}
+.qin:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.spacerflex{flex:1 1 auto}
+.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;font:inherit;font-size:12.5px;font-weight:600;
+  padding:7px 13px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.btn:hover{filter:brightness(1.06)}
+.pager{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:12px}
+.pgbtn{border:1px solid var(--line);background:var(--surf);color:var(--ink);font:inherit;font-size:12.5px;
+  padding:5px 12px;border-radius:8px;cursor:pointer}
+.pgbtn:disabled{opacity:.4;cursor:default}
 footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
 </style>
 
@@ -209,8 +221,22 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="scroll"><table id="segTable"></table></div>
   </div>
 
-  <div class="sectionlabel">Recent attempted calls</div>
-  <div class="card scroll"><table id="sampleTable"></table></div>
+  <div class="sectionlabel">Lead explorer — search all leads</div>
+  <div class="card">
+    <div class="explorer">
+      <input id="qEmail" class="qin" placeholder="Lead ID / email…">
+      <input id="qPa" class="qin" placeholder="PA contains…">
+      <input id="qPod" class="qin" placeholder="Pod contains…">
+      <input id="qStatus" class="qin" placeholder="Lead status contains…">
+      <button id="qReset" class="iconbtn" title="Clear all filters">✕</button>
+      <span class="spacerflex"></span>
+      <span id="leadCount" class="hint"></span>
+      <button id="exportCsv" class="btn">⭳ Export CSV</button>
+    </div>
+    <div class="hint" style="margin:2px 0 10px">Filters combine with AND. Export downloads all leads when no filter is set, or just the filtered rows when one is.</div>
+    <div class="scroll"><table id="leadsTable"></table></div>
+    <div class="pager" id="leadsPager"></div>
+  </div>
 
   <footer id="foot"></footer>
 </div>
@@ -485,19 +511,62 @@ function renderSeg(){
     if(SORT.k===k)SORT.dir*=-1;else{SORT.k=k;SORT.dir=k==='name'?1:-1;}renderSeg();});
 }
 
-/* ---------- sample table ---------- */
-function renderSample(){
-  const s=DATA.sample||[];
-  const head=['Date','Pod','City','Channel','Role','Bucket','Outcome','Qual','Sale'];
-  const rowc=o=>o.qual?cssv('--good'):cssv('--ink-3');
-  document.getElementById('sampleTable').innerHTML=
-    `<thead><tr>${head.map((h,i)=>`<th style="${i>0?'':''}">${h}</th>`).join('')}</tr></thead><tbody>`+
-    s.slice(0,40).map(r=>`<tr>
-      <td>${fmtD(r.date)}</td><td>${r.pod||'–'}</td><td>${r.city||'–'}</td><td>${r.source||'–'}</td>
-      <td>${r.role||'–'}</td><td>${r.bucket||'–'}</td>
-      <td><span class="pill" style="background:color-mix(in srgb,${rowc(r)} 15%,transparent);color:${rowc(r)}">${r.outcome}</span></td>
-      <td>${r.qual?'✓':''}</td><td>${r.sale?'✓':''}</td></tr>`).join('')+'</tbody>';
+/* ---------- lead explorer (all leads: search + paginate + CSV) ---------- */
+const LEADS=DATA.leads||[], LC={}; (DATA.leadCols||[]).forEach((k,i)=>LC[k]=i);
+let PAGE=0; const PSIZE=25;
+const qval=id=>(document.getElementById(id).value||'').trim().toLowerCase();
+function leadFilterActive(){return qval('qEmail')||qval('qPa')||qval('qPod')||qval('qStatus');}
+function filteredLeads(){
+  const e=qval('qEmail'),p=qval('qPa'),d=qval('qPod'),s=qval('qStatus');
+  if(!(e||p||d||s)) return LEADS;
+  return LEADS.filter(r=>
+    (!e||String(r[LC.email]).toLowerCase().includes(e)) &&
+    (!p||String(r[LC.pa]).toLowerCase().includes(p)) &&
+    (!d||String(r[LC.pod]).toLowerCase().includes(d)) &&
+    (!s||String(r[LC.status]).toLowerCase().includes(s)));
 }
+const esc=s=>{s=s==null?'':String(s);return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));};
+function renderLeads(){
+  const rows=filteredLeads(), total=rows.length, pages=Math.max(1,Math.ceil(total/PSIZE));
+  if(PAGE>=pages)PAGE=pages-1; if(PAGE<0)PAGE=0;
+  const slice=rows.slice(PAGE*PSIZE,PAGE*PSIZE+PSIZE);
+  const head=['Lead ID','Date','Pod','PA','Lead status','Bucket','Outcome','Att','Qual','Sale'];
+  document.getElementById('leadsTable').innerHTML='<thead><tr>'+head.map(h=>`<th>${h}</th>`).join('')+
+    '</tr></thead><tbody>'+slice.map(r=>{
+      const oc=r[LC.qual]?cssv('--good'):cssv('--ink-3');
+      return `<tr><td>${esc(r[LC.email])||'–'}</td><td>${fmtD(r[LC.date])}</td>
+        <td>${esc(r[LC.pod])||'–'}</td><td>${esc(r[LC.pa])||'–'}</td><td>${esc(r[LC.status])||'–'}</td>
+        <td>${esc(r[LC.bucket])||'–'}</td>
+        <td><span class="pill" style="background:color-mix(in srgb,${oc} 15%,transparent);color:${oc}">${esc(r[LC.outcome])||'—'}</span></td>
+        <td class="num">${r[LC.att]}</td><td>${r[LC.qual]?'✓':''}</td><td>${r[LC.sale]?'✓':''}</td></tr>`;
+    }).join('')+'</tbody>';
+  document.getElementById('leadCount').textContent=`${nf(total)} lead${total===1?'':'s'}${leadFilterActive()?' (filtered)':''}`;
+  const pg=document.getElementById('leadsPager');
+  pg.innerHTML=`<button class="pgbtn" id="pgPrev" ${PAGE<=0?'disabled':''}>‹ Prev</button>
+    <span class="hint num">Page ${PAGE+1} of ${nf(pages)}</span>
+    <button class="pgbtn" id="pgNext" ${PAGE>=pages-1?'disabled':''}>Next ›</button>`;
+  const pv=document.getElementById('pgPrev'), nx=document.getElementById('pgNext');
+  if(pv)pv.onclick=()=>{PAGE--;renderLeads();}; if(nx)nx.onclick=()=>{PAGE++;renderLeads();};
+}
+function exportCSV(){
+  const rows=filteredLeads();
+  const cols=['email','date','pod','pa','status','bucket','outcome','att','qual','sale'];
+  const head=['lead_email','Date','Pod','PA','Lead status','Bucket','Outcome','Attempts','Qualified','Sale'];
+  const cq=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const lines=[head.join(',')];
+  rows.forEach(r=>lines.push(cols.map(c=>{
+    if(c==='date')return isoOff(r[LC.date]);
+    if(c==='qual'||c==='sale')return r[LC[c]]?'1':'0';
+    return cq(r[LC[c]]);
+  }).join(',')));
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`ik-bot-leads-${leadFilterActive()?'filtered':'all'}-${isoOff(DAYS[ND-1])}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+}
+['qEmail','qPa','qPod','qStatus'].forEach(id=>document.getElementById(id).oninput=()=>{PAGE=0;renderLeads();});
+document.getElementById('qReset').onclick=()=>{['qEmail','qPa','qPod','qStatus'].forEach(id=>document.getElementById(id).value='');PAGE=0;renderLeads();};
+document.getElementById('exportCsv').onclick=exportCSV;
 
 /* ---------- lead-status stage groups ---------- */
 function renderSG(){
@@ -513,7 +582,7 @@ function renderAll(){
   const ix=idxRange();
   const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
   document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
-  renderKPI();renderFunnel();renderImpact();renderTrends();renderMixes();renderDonut();renderSG();renderDimSeg();renderSeg();renderSample();
+  renderKPI();renderFunnel();renderImpact();renderTrends();renderMixes();renderDonut();renderSG();renderDimSeg();renderSeg();
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('foot').innerHTML=`Source: <span class="num">ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</span> · ${nf(M.rows)} leads · rebuilt daily from BigQuery · generated ${DATA.generated_at}`;
@@ -547,4 +616,5 @@ document.getElementById('themeBtn').onclick=()=>{
   document.documentElement.setAttribute('data-theme',next);renderAll();};
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',renderAll);
 renderAll();
+renderLeads();
 </script>
