@@ -67,6 +67,9 @@ a{color:var(--accent)}
 /* grid */
 .grid{display:grid;gap:14px}
 .k5{grid-template-columns:repeat(5,1fr)}
+.kpiwrap{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1080px){.kpiwrap{grid-template-columns:repeat(2,1fr)}}
+.kpi .big{font-size:26px}
 .c2{grid-template-columns:2fr 1fr}
 .c2b{grid-template-columns:1fr 1fr}
 .c3{grid-template-columns:repeat(3,1fr)}
@@ -142,6 +145,12 @@ svg{display:block;width:100%;overflow:visible}
 .pgbtn{border:1px solid var(--line);background:var(--surf);color:var(--ink);font:inherit;font-size:12.5px;
   padding:5px 12px;border-radius:8px;cursor:pointer}
 .pgbtn:disabled{opacity:.4;cursor:default}
+.cmp th{text-transform:none;letter-spacing:0;font-size:11.5px}
+.cmp td.win{color:var(--good);font-weight:700}
+.qrow{display:grid;grid-template-columns:120px 1fr 52px;align-items:center;gap:10px;font-size:12.5px;padding:2px 0}
+.qrow .bn{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qbars{display:flex;flex-direction:column;gap:3px}
+.qbars .btrack{height:8px;background:var(--surf-2)}
 footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
 </style>
 
@@ -171,7 +180,7 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
   </div>
   <div class="denote">One denominator — every headline percentage is a share of <b>Leads</b>. <span id="rangeTxt"></span></div>
 
-  <div class="grid k5" id="kpis"></div>
+  <div class="grid kpiwrap" id="kpis"></div>
 
   <div class="sectionlabel">Where the pipeline leaks — lead → sale</div>
   <div class="grid c2">
@@ -184,6 +193,24 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
       <div class="cardhead"><div><h3>Bot → business impact</h3><div class="hint">Does bot-qualification convert downstream?</div></div></div>
       <div id="impact"></div>
     </div>
+  </div>
+
+  <div class="sectionlabel">Qualification intelligence — what drives qualified vs disqualified</div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>A/B bot variant scorecard</h3>
+      <div class="hint">Same leads, two bot versions — which one qualifies more</div></div></div><div id="abTest"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Conversation depth — where calls drop</h3>
+      <div class="hint">Of connected leads, how far the scripted call gets before it ends</div></div></div><div id="answerDepth"></div></div>
+  </div>
+  <div class="grid c2b">
+    <div class="card">
+      <div class="cardhead"><div><h3>Qualification drivers by segment</h3>
+        <div class="hint">Qual % vs DQ % per segment (≥20 leads), best first</div></div>
+        <div class="seg" id="qdimSeg"></div></div>
+      <div id="qualDrivers"></div>
+    </div>
+    <div class="card"><div class="cardhead"><div><h3>Disqualification — reclaimable vs hard</h3>
+      <div class="hint">How much DQ a PSA/human could still recover</div></div></div><div id="dqRecover"></div></div>
   </div>
 
   <div class="sectionlabel">Trends</div>
@@ -291,12 +318,11 @@ function wow(metricIdx){ // last 7 vs prev 7 (by offset)
 function idxOffRange(a,b){const o=[];for(let i=0;i<ND;i++)if(DAYS[i]>=a&&DAYS[i]<=b)o.push(i);return o;}
 
 /* ---------- KPI ---------- */
-function kpiTile(lbl,val,sub,d,spark){
-  let dc='flat',dt='±0%';
-  if(d!=null&&isFinite(d)){dc=d>0.5?'up':d<-0.5?'dn':'flat';dt=(d>0?'+':'')+d.toFixed(0)+'%';}
-  else dt='—';
+function kpiTile(lbl,val,sub,d,spark,invert){
+  let dc='flat',dt='—';
+  if(d!=null&&isFinite(d)){const good=invert?d<0:d>0;dc=Math.abs(d)<0.5?'flat':(good?'up':'dn');dt=(d>0?'+':'')+d.toFixed(0)+'%';}
   return `<div class="card kpi"><div class="row"><span class="lbl">${lbl}</span>
-    <span class="delta ${dc}">${dt}</span></div>
+    <span class="delta ${dc}" title="week-over-week">${dt}</span></div>
     <div class="big num">${val}</div><div class="sub">${sub}</div>
     <div class="spark">${spark||''}</div></div>`;
 }
@@ -313,15 +339,18 @@ function sparkline(metricIdx,asRate){
     <circle cx="${X0(pts.length-1)}" cy="${Y0(pts[pts.length-1])}" r="3" fill="var(--accent)"/></svg>`;
 }
 function renderKPI(){
-  const ix=idxRange(),t=sumDaily(ix);
+  const ix=idxRange(),t=sumDaily(ix),L=t[X.leads]||1;
   const el=document.getElementById('kpis');
   const reached=t[X.conn], q=t[X.qual], booked=t[X.vcS]+t[X.vcA], sale=t[X.sale];
   el.innerHTML=[
-    kpiTile('Leads',nf(t[X.leads]),`${fmtD(ix[0]?DAYS[ix[0]]:0)} – ${fmtD(DAYS[ND-1])}`,wow(X.leads).delta,sparkline(X.leads,false)),
-    kpiTile('Reached',pf(reached,t[X.leads]),`${nf(reached)} connected of ${nf(t[X.leads])}`,wow(X.conn).delta,sparkline(X.conn,true)),
-    kpiTile('Bot qualified',pf(q,t[X.leads]),`${nf(q)} leads passed the gates`,wow(X.qual).delta,sparkline(X.qual,true)),
+    kpiTile('Leads',nf(t[X.leads]),`${fmtD(ix[0]!=null?DAYS[ix[0]]:0)} – ${fmtD(DAYS[ND-1])}`,wow(X.leads).delta,sparkline(X.leads,false)),
+    kpiTile('Reached',pf(reached,L),`${nf(reached)} connected of ${nf(t[X.leads])}`,wow(X.conn).delta,sparkline(X.conn,true)),
+    kpiTile('Answered ≥1',pf(t[X.ans1],L),`${nf(t[X.ans1])} engaged the bot`,wow(X.ans1).delta,sparkline(X.ans1,true)),
+    kpiTile('Answered ≥6',pf(t[X.ans6],L),`${nf(t[X.ans6])} completed the call`,wow(X.ans6).delta,sparkline(X.ans6,true)),
+    kpiTile('Bot qualified',pf(q,L),`${nf(q)} passed the gates`,wow(X.qual).delta,sparkline(X.qual,true)),
+    kpiTile('Bot disqualified',pf(t[X.dq],L),`${nf(t[X.dq])} tripped a gate`,wow(X.dq).delta,sparkline(X.dq,true),true),
     kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified`,wow(X.vcS).delta,sparkline(X.vcS,false)),
-    kpiTile('Sales',nf(sale),`${pf(sale,t[X.leads])} of leads · ${pf(t[X.qSale],q)} of qualified`,wow(X.sale).delta,sparkline(X.sale,false)),
+    kpiTile('Sales',nf(sale),`${pf(sale,L)} of leads · ${pf(t[X.qSale],q)} of qualified`,wow(X.sale).delta,sparkline(X.sale,false)),
   ].join('');
 }
 
@@ -511,6 +540,87 @@ function renderSeg(){
     if(SORT.k===k)SORT.dir*=-1;else{SORT.k=k;SORT.dir=k==='name'?1:-1;}renderSeg();});
 }
 
+/* ---------- qualification intelligence ---------- */
+let QDIM='role';
+const QDIM_LABELS={role:'Role',exp:'Experience',source:'Channel',owner:'Pod',webinar:'Webinar',city:'City'};
+function renderABTest(){
+  const ix=idxRange(), rows=sumDim('variant',ix), by={}; rows.forEach(r=>by[r.name]=r.v);
+  const c=by['control']||new Array(M.LM).fill(0), t=by['test']||new Array(M.LM).fill(0);
+  const defs=[
+    ['Leads', v=>nf(v[LX.leads]), null,false],
+    ['Connect %', v=>pf(v[LX.conn],v[LX.leads]), v=>v[LX.conn]/(v[LX.leads]||1),false],
+    ['Answered ≥1 %', v=>pf(v[LX.ans1],v[LX.leads]), v=>v[LX.ans1]/(v[LX.leads]||1),false],
+    ['Answered ≥6 %', v=>pf(v[LX.ans6],v[LX.leads]), v=>v[LX.ans6]/(v[LX.leads]||1),false],
+    ['Qualified %', v=>pf(v[LX.qual],v[LX.leads]), v=>v[LX.qual]/(v[LX.leads]||1),false],
+    ['Disqualified %', v=>pf(v[LX.dq],v[LX.leads]), v=>v[LX.dq]/(v[LX.leads]||1),true],
+    ['Sale %', v=>pf(v[LX.sale],v[LX.leads]), v=>v[LX.sale]/(v[LX.leads]||1),false],
+  ];
+  const body=defs.map(([lbl,fmt,rate,lowGood])=>{
+    let cW='',tW='';
+    if(rate){const cv=rate(c),tv=rate(t); if(Math.abs(cv-tv)>1e-9){const cwin=lowGood?cv<tv:cv>tv; cwin?cW='win':tW='win';}}
+    return `<tr><td>${lbl}</td><td class="num ${cW}">${fmt(c)}</td><td class="num ${tW}">${fmt(t)}</td></tr>`;
+  }).join('');
+  const cq=c[LX.qual]/(c[LX.leads]||1), tq=t[LX.qual]/(t[LX.leads]||1);
+  const lift=cq?((tq-cq)/cq*100):0, winner=Math.abs(tq-cq)<1e-9?'tie':(tq>cq?'test':'control');
+  document.getElementById('abTest').innerHTML=
+    `<div class="callout ${winner==='tie'?'':'good'}" style="margin-bottom:10px"><div class="t">Qualification winner</div>
+      <div class="v num">${winner==='tie'?'—':winner.toUpperCase()}</div>
+      <div class="d">${winner==='tie'?'no measurable gap yet':`test ${(tq*100).toFixed(1)}% vs control ${(cq*100).toFixed(1)}% qualified — ${winner} wins${(cq>0&&tq>0)?` (${Math.abs(lift).toFixed(0)}% ${lift>0?'higher':'lower'})`:''}`}</div></div>
+    <div class="scroll"><table class="cmp"><thead><tr><th>Metric</th><th>Control</th><th>Test</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function renderAnswerDepth(){
+  const ix=idxRange(), ans=sumHist('ans',ix), t=sumDaily(ix), conn=t[X.conn]||1;
+  const cum=k=>ans.slice(k).reduce((s,v)=>s+v,0);
+  const stages=[['Connected',conn]];
+  for(let k=1;k<=6;k++) stages.push([`Answered ≥${k}`,cum(k)]);
+  stages.push(['Bot qualified',t[X.qual]]);
+  let li=1,ld=-1; for(let i=1;i<stages.length;i++){const dr=stages[i-1][1]-stages[i][1]; if(dr>ld){ld=dr;li=i;}}
+  const col=cssv('--seq-3');
+  let html='<div class="blist">'+stages.map((s,i)=>{
+    const leak=i===li, step=i?pf(s[1],stages[i-1][1]):'—';
+    return `<div class="brow" data-tip="${s[0]}|${nf(s[1])}|${pf(s[1],conn)} of connected|step ${step}">
+      <span class="bn">${s[0]}</span><div class="btrack"><span style="width:${Math.max(s[1]/conn*100,0.6)}%;background:${leak?'var(--crit)':col}"></span></div>
+      <span class="bv num">${pf(s[1],conn)}</span></div>`;}).join('')+'</div>';
+  html+=`<div class="hint" style="margin-top:10px">Steepest drop: <b>${stages[li-1][0]} → ${stages[li][0]}</b>,
+    losing <b>${nf(ld)}</b> leads (${pf(ld,conn)} of connected) — the highest-leverage point to fix the script.</div>`;
+  document.getElementById('answerDepth').innerHTML=html; bindTip('answerDepth','.brow');
+}
+function renderQdimSeg(){
+  document.getElementById('qdimSeg').innerHTML=Object.keys(QDIM_LABELS).map(k=>
+    `<button data-d="${k}" class="${k===QDIM?'on':''}">${QDIM_LABELS[k]}</button>`).join('');
+  document.querySelectorAll('#qdimSeg button').forEach(b=>b.onclick=()=>{QDIM=b.dataset.d;renderQdimSeg();renderQualDrivers();});
+}
+function renderQualDrivers(){
+  const ix=idxRange();
+  const rows=sumDim(QDIM,ix).map(r=>({name:r.name,leads:r.v[LX.leads],q:r.v[LX.qual]/(r.v[LX.leads]||1),d:r.v[LX.dq]/(r.v[LX.leads]||1)}))
+    .filter(r=>r.leads>=20).sort((a,b)=>b.q-a.q).slice(0,12);
+  const mx=Math.max(...rows.flatMap(r=>[r.q,r.d]),0.01), gc=cssv('--good'), rc=cssv('--crit');
+  document.getElementById('qualDrivers').innerHTML='<div class="blist">'+rows.map(r=>
+    `<div class="qrow" data-tip="${r.name}|${nf(r.leads)} leads|Qualified ${(r.q*100).toFixed(1)}%|Disqualified ${(r.d*100).toFixed(1)}%">
+      <span class="bn" title="${r.name}">${r.name}</span>
+      <div class="qbars">
+        <div class="btrack"><span style="width:${(r.q/mx*100).toFixed(0)}%;background:${gc}"></span></div>
+        <div class="btrack"><span style="width:${(r.d/mx*100).toFixed(0)}%;background:${rc}"></span></div></div>
+      <span class="bv num">${(r.q*100).toFixed(1)}%</span></div>`).join('')+'</div>'+
+    `<div class="legend"><span><i style="background:${gc}"></i>Qualified %</span><span><i style="background:${rc}"></i>Disqualified %</span></div>`;
+  bindTip('qualDrivers','.qrow');
+}
+function renderDQRecover(){
+  const ix=idxRange(), dq=sumHist('dq',ix), total=dq.reduce((s,v)=>s+v,0)||1;
+  const recIdx=['PSA review needed','Vague answers','Reason unclear — review transcript'].map(l=>M.dq.indexOf(l)).filter(i=>i>=0);
+  const rec=recIdx.reduce((s,i)=>s+(dq[i]||0),0), hard=total-rec;
+  const pairs=M.dq.map((l,i)=>[l,dq[i]]).filter(p=>p[1]>0).sort((a,b)=>b[1]-a[1]);
+  const mx=Math.max(...pairs.map(p=>p[1]),1);
+  const status=[cssv('--crit'),cssv('--serious'),cssv('--warn'),cssv('--s4'),cssv('--s7'),cssv('--s5'),cssv('--ink-3'),cssv('--s8')];
+  const co=`<div class="callouts" style="grid-template-columns:1fr 1fr;margin-bottom:12px">
+    <div class="callout warn"><div class="t">Reclaimable</div><div class="v num">${nf(rec)}</div><div class="d">${pf(rec,total)} of DQ · PSA review / vague / unclear</div></div>
+    <div class="callout crit"><div class="t">Hard gate</div><div class="v num">${nf(hard)}</div><div class="d">${pf(hard,total)} · policy: YOE / CTC / role / target / intent</div></div></div>`;
+  const bars='<div class="blist">'+pairs.map((p,i)=>`<div class="brow" data-tip="${p[0]}|${nf(p[1])}|${pf(p[1],total)} of DQ">
+    <span class="bn" title="${p[0]}">${p[0]}</span><div class="btrack"><span style="width:${(p[1]/mx*100).toFixed(0)}%;background:${status[i%status.length]}"></span></div>
+    <span class="bv num">${nf(p[1])}</span></div>`).join('')+'</div>';
+  document.getElementById('dqRecover').innerHTML=co+bars; bindTip('dqRecover','.brow');
+}
+
 /* ---------- lead explorer (all leads: search + paginate + CSV) ---------- */
 const LEADS=DATA.leads||[], LC={}; (DATA.leadCols||[]).forEach((k,i)=>LC[k]=i);
 let PAGE=0; const PSIZE=25;
@@ -582,7 +692,9 @@ function renderAll(){
   const ix=idxRange();
   const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
   document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
-  renderKPI();renderFunnel();renderImpact();renderTrends();renderMixes();renderDonut();renderSG();renderDimSeg();renderSeg();
+  renderKPI();renderFunnel();renderImpact();
+  renderABTest();renderAnswerDepth();renderQdimSeg();renderQualDrivers();renderDQRecover();
+  renderTrends();renderMixes();renderDonut();renderSG();renderDimSeg();renderSeg();
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('foot').innerHTML=`Source: <span class="num">ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</span> · ${nf(M.rows)} leads · rebuilt daily from BigQuery · generated ${DATA.generated_at}`;
