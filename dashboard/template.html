@@ -56,6 +56,13 @@ a{color:var(--accent)}
 .seg button.on{background:var(--accent);color:#fff;font-weight:600}
 .iconbtn{border:1px solid var(--line);background:var(--surf);color:var(--ink-2);border-radius:9px;
   width:34px;height:32px;cursor:pointer;font-size:15px}
+.daterange{display:inline-flex;align-items:center;gap:6px;background:var(--surf);border:1px solid var(--line);
+  border-radius:10px;padding:3px 6px}
+.daterange.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.daterange input[type=date]{border:0;background:transparent;color:var(--ink);font:inherit;font-size:12.5px;
+  padding:2px 4px;color-scheme:light dark;cursor:pointer}
+.daterange .arr{color:var(--ink-3);font-size:12px}
+.daterange #dClear{width:26px;height:24px;font-size:12px;border-radius:6px}
 .denote{color:var(--ink-3);font-size:11.5px;margin:2px 0 16px}
 /* grid */
 .grid{display:grid;gap:14px}
@@ -141,6 +148,12 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
         <button data-r="7">7d</button><button data-r="30">30d</button>
         <button data-r="90">90d</button><button data-r="0" class="on">All</button>
       </div>
+      <div class="daterange" id="dateRange">
+        <input type="date" id="dFrom" aria-label="From date">
+        <span class="arr">→</span>
+        <input type="date" id="dTo" aria-label="To date">
+        <button class="iconbtn" id="dClear" title="Clear date filter">✕</button>
+      </div>
       <button class="iconbtn" id="themeBtn" title="Toggle theme">◐</button>
     </div>
   </div>
@@ -180,6 +193,13 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="card"><div class="cardhead"><div><h3>Call attempts to reach</h3><div class="hint">Retry-ladder distribution</div></div></div><div id="attBars"></div></div>
   </div>
 
+  <div class="sectionlabel">CRM pipeline stage</div>
+  <div class="card">
+    <div class="cardhead"><div><h3>Lead status — CRM stage groups</h3>
+      <div class="hint">Where these leads currently sit in the CRM (grouped from lead_status)</div></div></div>
+    <div id="sgBars"></div>
+  </div>
+
   <div class="sectionlabel">Segment performance</div>
   <div class="card">
     <div class="cardhead">
@@ -210,9 +230,12 @@ const nf=n=>n==null||isNaN(n)?"–":Math.round(n).toLocaleString('en-IN');
 const pf=(a,b,d=1)=>!b?"–":(a/b*100).toFixed(d)+"%";
 const offDate=o=>{const d=new Date(EPOCH);d.setUTCDate(d.getUTCDate()+o);return d;};
 const fmtD=o=>offDate(o).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
-let RANGE=0, DIM='owner', SORT={k:'qual',dir:-1};
+const isoOff=o=>offDate(o).toISOString().slice(0,10);
+const dateToOff=s=>Math.round((new Date(s+'T00:00:00Z')-EPOCH)/86400000);
+let RANGE=0, DIM='owner', SORT={k:'qual',dir:-1}, CUSTOM=null;
 
 function idxRange(){
+  if(CUSTOM) return [...Array(ND).keys()].filter(i=>DAYS[i]>=CUSTOM.a && DAYS[i]<=CUSTOM.b);
   if(!RANGE) return [...Array(ND).keys()];
   const last=DAYS[ND-1], cut=last-RANGE+1, o=[];
   for(let i=0;i<ND;i++) if(DAYS[i]>=cut) o.push(i);
@@ -476,17 +499,48 @@ function renderSample(){
       <td>${r.qual?'✓':''}</td><td>${r.sale?'✓':''}</td></tr>`).join('')+'</tbody>';
 }
 
+/* ---------- lead-status stage groups ---------- */
+function renderSG(){
+  const ix=idxRange(), sg=sumHist('sg',ix);
+  const cmap={'Enrolled':cssv('--good'),'In progress':cssv('--s1'),'Qualified/Scheduled':cssv('--s3'),
+    'Interested/Nurture':cssv('--s4'),'Open/New':cssv('--ink-3'),'Lost':cssv('--crit'),'Junk/Inactive':cssv('--s7')};
+  const pairs=M.sg.map((l,i)=>[l,sg[i]]);
+  barsInto('sgBars',pairs,{color:(i,p)=>cmap[p[0]]||cssv('--s1')});
+}
+
 /* ---------- orchestration ---------- */
 function renderAll(){
   const ix=idxRange();
-  document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days · ${nf(sumDaily(ix)[X.leads])} leads.`;
-  renderKPI();renderFunnel();renderImpact();renderTrends();renderMixes();renderDonut();renderDimSeg();renderSeg();renderSample();
+  const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
+  document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
+  renderKPI();renderFunnel();renderImpact();renderTrends();renderMixes();renderDonut();renderSG();renderDimSeg();renderSeg();renderSample();
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('foot').innerHTML=`Source: <span class="num">ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</span> · ${nf(M.rows)} leads · rebuilt daily from BigQuery · generated ${DATA.generated_at}`;
 }
 document.getElementById('rangeSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
-  RANGE=+b.dataset.r;document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.toggle('on',x===b));renderAll();});
+  RANGE=+b.dataset.r; CUSTOM=null;
+  document.getElementById('dFrom').value=''; document.getElementById('dTo').value='';
+  document.getElementById('dateRange').classList.remove('active');
+  document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.toggle('on',x===b));renderAll();});
+
+// calendar date filter
+const dFrom=document.getElementById('dFrom'), dTo=document.getElementById('dTo');
+dFrom.min=dTo.min=isoOff(DAYS[0]); dFrom.max=dTo.max=isoOff(DAYS[ND-1]);
+function applyCustom(){
+  if(!dFrom.value || !dTo.value) return;
+  let a=dateToOff(dFrom.value), b=dateToOff(dTo.value); if(a>b){[a,b]=[b,a];}
+  CUSTOM={a,b}; RANGE=-1;
+  document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.remove('on'));
+  document.getElementById('dateRange').classList.add('active');
+  renderAll();
+}
+dFrom.onchange=applyCustom; dTo.onchange=applyCustom;
+document.getElementById('dClear').onclick=()=>{
+  CUSTOM=null; RANGE=0; dFrom.value=''; dTo.value='';
+  document.getElementById('dateRange').classList.remove('active');
+  document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.r==='0'));
+  renderAll();};
 document.getElementById('themeBtn').onclick=()=>{
   const cur=document.documentElement.getAttribute('data-theme');
   const next=cur==='dark'?'light':cur==='light'?'dark':(matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark');
