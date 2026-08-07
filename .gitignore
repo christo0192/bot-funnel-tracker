@@ -1,0 +1,23 @@
+# secrets / creds — never commit
+*.json.key
+.gcp-keys/
+site/.vercel/
+site/.env.local
+.vercel/
+.env
+.env.local
+
+# generated artifacts (rebuilt by CI each run)
+data.json
+site/index.html
+dashboard/console.html
+pipeline/last-refresh.log
+
+# internal source doc — not needed by CI, keep out of the repo
+*.pdf
+
+# noise
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store

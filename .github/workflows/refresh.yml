@@ -1,0 +1,55 @@
+name: Refresh IK Bot Console
+
+# Cloud-scheduled daily refresh — no local machine needed.
+# 02:00 UTC = 07:30 IST. Also runnable on demand from the Actions tab.
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps
+        run: pip install --quiet google-cloud-bigquery
+
+      - name: Write service-account key
+        run: printf '%s' "$GCP_SA_KEY" > "$RUNNER_TEMP/sa.json"
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Build data from BigQuery
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: python pipeline/build_data.py --out data.json
+
+      - name: Inject data into the dashboard
+        run: python pipeline/inject.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Deploy to Vercel (production)
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          mkdir -p site/.vercel
+          printf '{"projectId":"%s","orgId":"%s"}' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" > site/.vercel/project.json
+          npx --yes vercel@58 deploy --prod --yes --cwd site --token "$VERCEL_TOKEN"
+
+      - name: Summary
+        run: echo "Deployed https://bot-funnel-tracker.vercel.app at $(date -u +%FT%TZ)" >> "$GITHUB_STEP_SUMMARY"

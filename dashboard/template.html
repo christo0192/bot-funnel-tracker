@@ -1,0 +1,496 @@
+<title>IK Bot Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#f4f4f2; --surf:#fcfcfb; --surf-2:#efefec; --line:#e0e0da; --line-2:#d2d2ca;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-3:#86867e;
+  --accent:#2a78d6; --accent-soft:#e7f0fc;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+  --good:#008300; --warn:#eda100; --serious:#eb6834; --crit:#e34948;
+  --grid:#ececE6; --mid:#f0efec;
+  --seq-1:#cde2fb; --seq-2:#86b6ef; --seq-3:#3987e5; --seq-4:#1c5cab;
+  --shadow:0 1px 2px rgba(16,20,30,.06),0 2px 8px rgba(16,20,30,.05);
+  --radius:14px;
+  --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121211; --surf:#1a1a19; --surf-2:#222220; --line:#33332f; --line-2:#3f3f3a;
+  --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#8f8f86;
+  --accent:#3987e5; --accent-soft:#16233a;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --grid:#2a2a27; --mid:#383835;
+  --seq-1:#104281; --seq-2:#1c5cab; --seq-3:#3987e5; --seq-4:#86b6ef;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 2px 10px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --bg:#121211; --surf:#1a1a19; --surf-2:#222220; --line:#33332f; --line-2:#3f3f3a;
+  --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#8f8f86;
+  --accent:#3987e5; --accent-soft:#16233a;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --grid:#2a2a27; --mid:#383835;
+  --seq-1:#104281; --seq-2:#1c5cab; --seq-3:#3987e5; --seq-4:#86b6ef;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 2px 10px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding:22px 20px 60px}
+.num{font-variant-numeric:tabular-nums}
+h1,h2,h3{margin:0}
+a{color:var(--accent)}
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:34px;height:34px;border-radius:9px;background:var(--accent);position:relative;flex:0 0 auto}
+.logo::after{content:"";position:absolute;inset:9px 8px;border:2.5px solid #fff;border-radius:50%;border-right-color:transparent;transform:rotate(-20deg)}
+.brand h1{font-size:20px;letter-spacing:-.02em;font-weight:680}
+.brand .sub{color:var(--ink-2);font-size:12px;margin-top:1px}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);
+  background:var(--surf);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:2px}
+.seg button{border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:12.5px;
+  padding:5px 11px;border-radius:8px;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff;font-weight:600}
+.iconbtn{border:1px solid var(--line);background:var(--surf);color:var(--ink-2);border-radius:9px;
+  width:34px;height:32px;cursor:pointer;font-size:15px}
+.denote{color:var(--ink-3);font-size:11.5px;margin:2px 0 16px}
+/* grid */
+.grid{display:grid;gap:14px}
+.k5{grid-template-columns:repeat(5,1fr)}
+.c2{grid-template-columns:2fr 1fr}
+.c2b{grid-template-columns:1fr 1fr}
+.c3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:1080px){.k5{grid-template-columns:repeat(2,1fr)}.c2,.c2b,.c3{grid-template-columns:1fr}}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 16px 14px;box-shadow:var(--shadow)}
+.card h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);font-weight:640}
+.card .hint{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+/* kpi */
+.kpi .big{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:6px}
+.kpi .lbl{font-size:12px;color:var(--ink-2);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.kpi .row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.kpi .sub{font-size:12px;color:var(--ink-3);margin-top:1px}
+.delta{font-size:12px;font-weight:640;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.delta.up{color:var(--good);background:color-mix(in srgb,var(--good) 12%,transparent)}
+.delta.dn{color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.delta.flat{color:var(--ink-3);background:var(--surf-2)}
+.spark{margin-top:8px}
+/* funnel */
+.fstage{display:grid;grid-template-columns:150px 1fr 118px;align-items:center;gap:12px;padding:5px 0}
+.fstage .nm{font-size:13px;color:var(--ink-2);font-weight:600}
+.fbar{height:26px;background:var(--surf-2);border-radius:7px;overflow:hidden;position:relative}
+.fbar > span{display:block;height:100%;border-radius:7px 4px 4px 7px}
+.fstage .vals{text-align:right;font-size:13px}
+.fstage .vals b{font-weight:700}
+.fstage .pct{color:var(--ink-3);font-size:11.5px}
+.leak{color:var(--crit);font-weight:640}
+.callouts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+@media(max-width:720px){.callouts{grid-template-columns:1fr}}
+.callout{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:9px;padding:9px 11px;background:var(--surf-2)}
+.callout.warn{border-left-color:var(--warn)} .callout.crit{border-left-color:var(--crit)} .callout.good{border-left-color:var(--good)}
+.callout .t{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:640}
+.callout .v{font-size:19px;font-weight:700;margin-top:2px}
+.callout .d{font-size:11.5px;color:var(--ink-2);margin-top:1px}
+/* bars list */
+.blist{display:flex;flex-direction:column;gap:7px;margin-top:4px}
+.brow{display:grid;grid-template-columns:132px 1fr 62px;align-items:center;gap:10px;font-size:12.5px}
+.brow .bn{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btrack{height:16px;background:var(--surf-2);border-radius:5px;overflow:hidden}
+.btrack > span{display:block;height:100%;border-radius:5px}
+.brow .bv{text-align:right;color:var(--ink);font-weight:600}
+/* table */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--ink-3);font-size:11px;text-transform:uppercase;letter-spacing:.03em;font-weight:640;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--surf)}
+thead th.on{color:var(--accent)}
+tbody tr:hover{background:var(--surf-2)}
+td .mini{display:inline-block;height:7px;border-radius:3px;background:var(--accent);vertical-align:middle;margin-left:6px}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+.scroll{overflow-x:auto}
+.legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:10px;font-size:11.5px;color:var(--ink-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.tt{position:fixed;pointer-events:none;z-index:50;background:var(--ink);color:var(--bg);
+  font-size:11.5px;padding:6px 9px;border-radius:7px;opacity:0;transition:opacity .1s;white-space:nowrap;box-shadow:var(--shadow)}
+.tt .k{opacity:.7;margin-right:6px}
+svg{display:block;width:100%;overflow:visible}
+.axis{fill:var(--ink-3);font-size:10px;font-family:var(--mono)}
+.gl{stroke:var(--grid);stroke-width:1}
+.sectionlabel{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);
+  font-weight:660;margin:22px 2px 4px;display:flex;align-items:center;gap:10px}
+.sectionlabel::after{content:"";flex:1;height:1px;background:var(--line)}
+footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>IK Bot Console</h1>
+        <div class="sub">Bot calling qualification &amp; PA handover — India · Phase 2</div>
+      </div>
+    </div>
+    <div class="controls">
+      <span class="live"><span class="dot"></span><span id="liveTxt">live</span></span>
+      <div class="seg" id="rangeSeg">
+        <button data-r="7">7d</button><button data-r="30">30d</button>
+        <button data-r="90">90d</button><button data-r="0" class="on">All</button>
+      </div>
+      <button class="iconbtn" id="themeBtn" title="Toggle theme">◐</button>
+    </div>
+  </div>
+  <div class="denote">One denominator — every headline percentage is a share of <b>Leads</b>. <span id="rangeTxt"></span></div>
+
+  <div class="grid k5" id="kpis"></div>
+
+  <div class="sectionlabel">Where the pipeline leaks — lead → sale</div>
+  <div class="grid c2">
+    <div class="card" id="funnelCard">
+      <div class="cardhead"><div><h3>Business funnel</h3><div class="hint">Each stage as a share of all leads; the widest single drop is the primary gap.</div></div></div>
+      <div id="funnel"></div>
+      <div class="callouts" id="funnelCallouts"></div>
+    </div>
+    <div class="card">
+      <div class="cardhead"><div><h3>Bot → business impact</h3><div class="hint">Does bot-qualification convert downstream?</div></div></div>
+      <div id="impact"></div>
+    </div>
+  </div>
+
+  <div class="sectionlabel">Trends</div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>Daily leads &amp; connect rate</h3></div></div><div id="trendLeads"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Qualification rate over time</h3><div class="hint">Bot Qualified as % of leads (7-day average)</div></div></div><div id="trendQual"></div></div>
+  </div>
+
+  <div class="sectionlabel">Outcomes &amp; disqualification</div>
+  <div class="grid c3">
+    <div class="card"><div class="cardhead"><div><h3>Disqualification reasons</h3><div class="hint">Which gates fire</div></div></div><div id="dqBars"></div><div id="dqNote"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Booking outcomes</h3><div class="hint">Qualified-lead sub-status mix</div></div></div><div id="outDonut"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Connection buckets</h3><div class="hint">How the call attempt landed</div></div></div><div id="bukBars"></div></div>
+  </div>
+
+  <div class="sectionlabel">Connection efficiency</div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>Time to first connect</h3></div></div><div id="ttcBars"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Call attempts to reach</h3><div class="hint">Retry-ladder distribution</div></div></div><div id="attBars"></div></div>
+  </div>
+
+  <div class="sectionlabel">Segment performance</div>
+  <div class="card">
+    <div class="cardhead">
+      <div><h3>Breakdown</h3><div class="hint">Sorted; bar = qualification rate. Click a header to sort.</div></div>
+      <div class="seg" id="dimSeg"></div>
+    </div>
+    <div class="scroll"><table id="segTable"></table></div>
+  </div>
+
+  <div class="sectionlabel">Recent attempted calls</div>
+  <div class="card scroll"><table id="sampleTable"></table></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<div class="tt" id="tt"></div>
+<script id="botdata" type="application/json">__BOTDATA__</script>
+<script>
+"use strict";
+const DATA = JSON.parse(document.getElementById('botdata').textContent);
+const M=DATA.meta, X={}, LX={};
+M.X.forEach((k,i)=>X[k]=i); M.LX.forEach((k,i)=>LX[k]=i);
+const DAYS=DATA.days, ND=DAYS.length, DAILY=DATA.daily, HIST=DATA.hist, DIMS=DATA.dims;
+const EPOCH=new Date(DATA.epoch+"T00:00:00Z");
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SER=()=>[1,2,3,4,5,6,7,8].map(i=>cssv('--s'+i));
+const nf=n=>n==null||isNaN(n)?"–":Math.round(n).toLocaleString('en-IN');
+const pf=(a,b,d=1)=>!b?"–":(a/b*100).toFixed(d)+"%";
+const offDate=o=>{const d=new Date(EPOCH);d.setUTCDate(d.getUTCDate()+o);return d;};
+const fmtD=o=>offDate(o).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+let RANGE=0, DIM='owner', SORT={k:'qual',dir:-1};
+
+function idxRange(){
+  if(!RANGE) return [...Array(ND).keys()];
+  const last=DAYS[ND-1], cut=last-RANGE+1, o=[];
+  for(let i=0;i<ND;i++) if(DAYS[i]>=cut) o.push(i);
+  return o;
+}
+function sumDaily(ix){const v=new Array(M.M).fill(0);ix.forEach(i=>{for(let m=0;m<M.M;m++)v[m]+=DAILY[i][m];});return v;}
+function sumHist(k,ix){const L=HIST[k][0].length,v=new Array(L).fill(0);ix.forEach(i=>{for(let j=0;j<L;j++)v[j]+=HIST[k][i][j];});return v;}
+function sumDim(name,ix){const c=DIMS[name],out=c.v.map(()=>new Array(M.LM).fill(0));
+  ix.forEach(i=>{for(let j=0;j<c.v.length;j++){const cell=c.d[i][j];for(let m=0;m<M.LM;m++)out[j][m]+=cell[m];}});
+  return c.v.map((lab,j)=>({name:lab,v:out[j]}));}
+
+// tooltip
+const TT=document.getElementById('tt');
+function tipShow(html,e){TT.innerHTML=html;TT.style.opacity=1;tipMove(e);}
+function tipMove(e){let x=e.clientX+14,y=e.clientY+14;
+  if(x+TT.offsetWidth>innerWidth)x=e.clientX-TT.offsetWidth-14;
+  if(y+TT.offsetHeight>innerHeight)y=e.clientY-TT.offsetHeight-14;TT.style.left=x+'px';TT.style.top=y+'px';}
+function tipHide(){TT.style.opacity=0;}
+addEventListener('scroll',tipHide,true);
+
+function wow(metricIdx){ // last 7 vs prev 7 (by offset)
+  const last=DAYS[ND-1];
+  const cur=idxOffRange(last-6,last), prev=idxOffRange(last-13,last-7);
+  const a=sumDaily(cur)[metricIdx], b=sumDaily(prev)[metricIdx];
+  return {cur:a,prev:b,delta:b?((a-b)/b*100):null};
+}
+function idxOffRange(a,b){const o=[];for(let i=0;i<ND;i++)if(DAYS[i]>=a&&DAYS[i]<=b)o.push(i);return o;}
+
+/* ---------- KPI ---------- */
+function kpiTile(lbl,val,sub,d,spark){
+  let dc='flat',dt='±0%';
+  if(d!=null&&isFinite(d)){dc=d>0.5?'up':d<-0.5?'dn':'flat';dt=(d>0?'+':'')+d.toFixed(0)+'%';}
+  else dt='—';
+  return `<div class="card kpi"><div class="row"><span class="lbl">${lbl}</span>
+    <span class="delta ${dc}">${dt}</span></div>
+    <div class="big num">${val}</div><div class="sub">${sub}</div>
+    <div class="spark">${spark||''}</div></div>`;
+}
+function sparkline(metricIdx,asRate){
+  const w=210,h=34,ix=idxRange();
+  const pts=ix.map(i=>asRate?(DAILY[i][X.leads]?DAILY[i][metricIdx]/DAILY[i][X.leads]:0):DAILY[i][metricIdx]);
+  if(pts.length<2)return'';
+  const mx=Math.max(...pts,1e-9),mn=Math.min(...pts,0);
+  const X0=(k)=>k/(pts.length-1)*w, Y0=(v)=>h-2-(v-mn)/(mx-mn||1)*(h-6);
+  let d='M'+pts.map((v,k)=>X0(k).toFixed(1)+','+Y0(v).toFixed(1)).join(' L');
+  const area=d+` L${w},${h} L0,${h} Z`;
+  return `<svg viewBox="0 0 ${w} ${h}" height="${h}"><path d="${area}" fill="var(--accent-soft)"/>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    <circle cx="${X0(pts.length-1)}" cy="${Y0(pts[pts.length-1])}" r="3" fill="var(--accent)"/></svg>`;
+}
+function renderKPI(){
+  const ix=idxRange(),t=sumDaily(ix);
+  const el=document.getElementById('kpis');
+  const reached=t[X.conn], q=t[X.qual], booked=t[X.vcS]+t[X.vcA], sale=t[X.sale];
+  el.innerHTML=[
+    kpiTile('Leads',nf(t[X.leads]),`${fmtD(ix[0]?DAYS[ix[0]]:0)} – ${fmtD(DAYS[ND-1])}`,wow(X.leads).delta,sparkline(X.leads,false)),
+    kpiTile('Reached',pf(reached,t[X.leads]),`${nf(reached)} connected of ${nf(t[X.leads])}`,wow(X.conn).delta,sparkline(X.conn,true)),
+    kpiTile('Bot qualified',pf(q,t[X.leads]),`${nf(q)} leads passed the gates`,wow(X.qual).delta,sparkline(X.qual,true)),
+    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified`,wow(X.vcS).delta,sparkline(X.vcS,false)),
+    kpiTile('Sales',nf(sale),`${pf(sale,t[X.leads])} of leads · ${pf(t[X.qSale],q)} of qualified`,wow(X.sale).delta,sparkline(X.sale,false)),
+  ].join('');
+}
+
+/* ---------- Funnel ---------- */
+function renderFunnel(){
+  const ix=idxRange(),t=sumDaily(ix),L=t[X.leads]||1;
+  const stages=[
+    ['Leads',t[X.leads]],['Attempted',t[X.att]],['Connected',t[X.conn]],
+    ['Answered Q1',t[X.ans1]],['Bot qualified',t[X.qual]],
+    ['VC booked',t[X.vcS]+t[X.vcA]],['PA connected',t[X.paConn]],['Sale',t[X.sale]]];
+  // biggest absolute drop
+  let leakIdx=1,leakDrop=-1;
+  for(let i=1;i<stages.length;i++){const dr=stages[i-1][1]-stages[i][1];if(dr>leakDrop){leakDrop=dr;leakIdx=i;}}
+  const col=cssv('--seq-3');
+  let html='';
+  stages.forEach((s,i)=>{
+    const w=Math.max(s[1]/L*100,0.6), step=i?pf(s[1],stages[i-1][1]):'100%';
+    const isLeak=i===leakIdx;
+    html+=`<div class="fstage"><div class="nm">${s[0]}</div>
+      <div class="fbar" data-tip="${s[0]}|${nf(s[1])}|${pf(s[1],L)} of leads|step ${step}">
+        <span style="width:${w}%;background:${isLeak?'var(--crit)':col}"></span></div>
+      <div class="vals"><b class="num">${nf(s[1])}</b> <span class="pct num">${pf(s[1],L)}</span><br>
+      <span class="pct ${isLeak?'leak':''}">↳ ${step}${isLeak?' · biggest leak':''}</span></div></div>`;
+  });
+  document.getElementById('funnel').innerHTML=html;
+  bindTip('funnel','.fbar');
+  // callouts
+  const unbooked=t[X.qual]-(t[X.vcS]+t[X.vcA]);
+  const dqv=sumHist('dq',ix), vagueI=M.dq.indexOf('Vague answers'), psaI=M.dq.indexOf('PSA review needed');
+  const co=[
+    {c:'crit',t:'Primary gap',v:`${stages[leakIdx-1][0]} → ${stages[leakIdx][0]}`,d:`${nf(leakDrop)} leads lost (${pf(leakDrop,L)})`},
+    {c:'warn',t:'Qualified, not booked',v:nf(unbooked),d:`${pf(unbooked,t[X.qual])} of qualified — hot leads to chase`},
+    {c:'',t:'PSA review queue',v:nf(dqv[psaI]||0),d:`human 2-min reviews pending`},
+  ];
+  document.getElementById('funnelCallouts').innerHTML=co.map(c=>
+    `<div class="callout ${c.c}"><div class="t">${c.t}</div><div class="v num">${c.v}</div><div class="d">${c.d}</div></div>`).join('');
+}
+
+/* ---------- Impact panel ---------- */
+function renderImpact(){
+  const ix=idxRange(),t=sumDaily(ix),L=t[X.leads]||1;
+  // What the bot demonstrably produced (its owned output)
+  const co=[
+    {t:'PA-ready leads delivered',v:nf(t[X.qual]),d:`${pf(t[X.qual],L)} of leads, qualified with no human pre-call`,c:'good'},
+    {t:'VC consults booked',v:nf(t[X.vcS]+t[X.vcA]),d:`live on the call · ${pf(t[X.vcS]+t[X.vcA],t[X.qual])} of qualified`,c:''},
+    {t:'PA connected',v:nf(t[X.paConn]),d:`${pf(t[X.paConn],t[X.qual])} of qualified reached a PA`,c:''},
+  ];
+  let html=`<div class="callouts" style="grid-template-columns:1fr;gap:8px;margin:0 0 12px">`+
+    co.map(c=>`<div class="callout ${c.c}"><div class="t">${c.t}</div><div class="v num">${c.v}</div><div class="d">${c.d}</div></div>`).join('')+`</div>`;
+  // Sale rates by stage — factual, with attribution caveat
+  const rows=[
+    ['All leads',pf(t[X.sale],L),t[X.sale]/L],
+    ['Bot-qualified',pf(t[X.qSale],t[X.qual]),t[X.qSale]/(t[X.qual]||1)],
+    ['PA-connected',pf(t[X.connSale],t[X.paConn]),t[X.connSale]/(t[X.paConn]||1)],
+  ];
+  const mx=Math.max(...rows.map(r=>r[2]),1e-9);
+  html+=`<div class="hint" style="margin-bottom:6px">Sale rate by stage reached</div><div class="blist">`;
+  rows.forEach((r,i)=>{html+=`<div class="brow"><span class="bn">${r[0]}</span>
+    <div class="btrack"><span style="width:${(r[2]/mx*100).toFixed(1)}%;background:${SER()[i%8]}"></span></div>
+    <span class="bv num">${r[1]}</span></div>`;});
+  html+=`</div><div class="hint" style="margin-top:10px">Sale flag spans all channels and lags the call, so bot-qualified
+    sales under-count recent cohorts — read qualification &amp; booking as the bot's near-term output.</div>`;
+  document.getElementById('impact').innerHTML=html;
+}
+
+/* ---------- line charts ---------- */
+function lineChart(el,series,opt){
+  opt=opt||{};const ix=idxRange();const W=520,H=190,pl=34,pr=10,pt=12,pb=22;
+  const xs=ix.map(i=>DAYS[i]);
+  const flat=series.flatMap(s=>s.data);const mx=Math.max(...flat,opt.min1?1:1e-9),mn=0;
+  const px=o=>pl+(o-xs[0])/((xs[xs.length-1]-xs[0])||1)*(W-pl-pr);
+  const py=v=>pt+(1-(v-mn)/(mx-mn||1))*(H-pt-pb);
+  let g='';for(let k=0;k<=4;k++){const v=mx*k/4,y=py(v);
+    g+=`<line class="gl" x1="${pl}" y1="${y.toFixed(1)}" x2="${W-pr}" y2="${y.toFixed(1)}"/>
+    <text class="axis" x="${pl-6}" y="${(y+3).toFixed(1)}" text-anchor="end">${opt.rate?(v*100).toFixed(0)+'%':nf(v)}</text>`;}
+  // x labels (~5)
+  let xl='';const step=Math.max(1,Math.floor(xs.length/5));
+  for(let k=0;k<xs.length;k+=step){xl+=`<text class="axis" x="${px(xs[k]).toFixed(1)}" y="${H-6}" text-anchor="middle">${fmtD(xs[k])}</text>`;}
+  let paths='';
+  series.forEach(s=>{
+    const dd=s.data.map((v,k)=>px(xs[k]).toFixed(1)+','+py(v).toFixed(1));
+    if(s.area)paths+=`<path d="M${dd.join(' L')} L${px(xs[xs.length-1])},${py(0)} L${px(xs[0])},${py(0)} Z" fill="${s.fill||'var(--accent-soft)'}"/>`;
+    paths+=`<path d="M${dd.join(' L')}" fill="none" stroke="${s.color}" stroke-width="2"/>`;
+  });
+  // hover
+  let dots=xs.map((o,k)=>{
+    const tip=series.map(s=>`<div><span class="k">${s.name}</span>${opt.rate?(s.data[k]*100).toFixed(1)+'%':nf(s.data[k])}</div>`).join('');
+    return `<rect x="${(px(o)-6).toFixed(1)}" y="${pt}" width="12" height="${H-pt-pb}" fill="transparent"
+      data-h="${fmtD(o)}||${encodeURIComponent(tip)}"></rect>`;}).join('');
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}">${g}${paths}<g>${dots}</g>${xl}</svg>`;
+  el.querySelectorAll('rect[data-h]').forEach(r=>{
+    r.onmousemove=e=>{const[d,t]=r.dataset.h.split('||');tipShow(`<b>${d}</b>${decodeURIComponent(t)}`,e);};
+    r.onmouseleave=tipHide;});
+}
+function renderTrends(){
+  const ix=idxRange();
+  lineChart(document.getElementById('trendLeads'),
+    [{name:'Leads',data:ix.map(i=>DAILY[i][X.leads]),color:cssv('--s1'),area:true}]);
+  // 7d moving avg qual rate
+  const rate=ix.map(i=>DAILY[i][X.leads]?DAILY[i][X.qual]/DAILY[i][X.leads]:0);
+  const ma=rate.map((_,k)=>{const a=Math.max(0,k-6);const seg=rate.slice(a,k+1);return seg.reduce((s,v)=>s+v,0)/seg.length;});
+  lineChart(document.getElementById('trendQual'),
+    [{name:'Qual rate',data:ma,color:cssv('--s3'),area:true,fill:'color-mix(in srgb,var(--s3) 14%,transparent)'}],{rate:true});
+}
+
+/* ---------- horizontal bars ---------- */
+function barsInto(elId,pairs,opt){
+  opt=opt||{};const tot=pairs.reduce((s,p)=>s+p[1],0)||1;
+  const mx=Math.max(...pairs.map(p=>p[1]),1e-9);
+  const el=document.getElementById(elId);
+  el.innerHTML='<div class="blist">'+pairs.map((p,i)=>{
+    const col=opt.color?opt.color(i,p):cssv('--s1');
+    return `<div class="brow" data-tip="${p[0]}|${nf(p[1])}|${pf(p[1],tot)} of shown">
+      <span class="bn" title="${p[0]}">${p[0]}</span>
+      <div class="btrack"><span style="width:${(p[1]/mx*100).toFixed(1)}%;background:${col}"></span></div>
+      <span class="bv num">${nf(p[1])}</span></div>`;}).join('')+'</div>';
+  bindTip(elId,'.brow');
+}
+function bindTip(elId,sel){
+  document.getElementById(elId).querySelectorAll(sel).forEach(n=>{
+    if(!n.dataset.tip)return;const parts=n.dataset.tip.split('|');
+    n.onmousemove=e=>tipShow(`<b>${parts[0]}</b><br>${parts.slice(1).map(x=>`<div>${x}</div>`).join('')}`,e);
+    n.onmouseleave=tipHide;});
+}
+function renderMixes(){
+  const ix=idxRange();
+  const dq=sumHist('dq',ix); const dqp=M.dq.map((l,i)=>[l,dq[i]]).filter(p=>p[1]>0).sort((a,b)=>b[1]-a[1]);
+  const status=[cssv('--crit'),cssv('--serious'),cssv('--warn'),cssv('--s4'),cssv('--s7'),cssv('--s5'),cssv('--s8'),cssv('--ink-3')];
+  barsInto('dqBars',dqp,{color:(i)=>status[i%status.length]});
+  const vagueI=M.dq.indexOf('Vague answers'),psaI=M.dq.indexOf('PSA review needed');
+  const dqTot=dq.reduce((s,v)=>s+v,0)||1;
+  document.getElementById('dqNote').innerHTML=`<div class="hint" style="margin-top:10px">
+    Vague answers = <b>${pf(dq[vagueI]||0,dqTot)}</b> of DQs · PSA review = <b>${pf(dq[psaI]||0,dqTot)}</b>.
+    Watch the vague rate against the SOP calibration threshold.</div>`;
+  const buk=sumHist('buk',ix);barsInto('bukBars',M.buckets.map((l,i)=>[l,buk[i]]),{color:(i)=>[cssv('--ink-3'),cssv('--s2'),cssv('--s8'),cssv('--s4'),cssv('--s3')][i]});
+  const ttc=sumHist('ttc',ix);barsInto('ttcBars',M.ttc.map((l,i)=>[l,ttc[i]]).filter(p=>p[1]>0),{color:()=>cssv('--seq-3')});
+  const at=sumHist('att',ix);barsInto('attBars',M.att.map((l,i)=>[l,at[i]]),{color:()=>cssv('--seq-3')});
+}
+
+/* ---------- donut ---------- */
+function renderDonut(){
+  const ix=idxRange(),out=sumHist('out',ix);
+  const pairs=M.out.map((l,i)=>[l,out[i]]).filter(p=>p[1]>0).sort((a,b)=>b[1]-a[1]);
+  const tot=pairs.reduce((s,p)=>s+p[1],0)||1,ser=SER();
+  const el=document.getElementById('outDonut');const R=64,r=40,cx=80,cy=80;let a=-Math.PI/2,seg='';
+  pairs.forEach((p,i)=>{const ang=p[1]/tot*2*Math.PI,a2=a+ang;
+    const x1=cx+R*Math.cos(a),y1=cy+R*Math.sin(a),x2=cx+R*Math.cos(a2),y2=cy+R*Math.sin(a2);
+    const xi=cx+r*Math.cos(a2),yi=cy+r*Math.sin(a2),xj=cx+r*Math.cos(a);
+    const big=ang>Math.PI?1:0;
+    seg+=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${big} 1 ${x2.toFixed(1)},${y2.toFixed(1)}
+      L${xi.toFixed(1)},${yi.toFixed(1)} A${r},${r} 0 ${big} 0 ${xj.toFixed(1)},${(cy+r*Math.sin(a)).toFixed(1)} Z"
+      fill="${ser[i%8]}" stroke="var(--surf)" stroke-width="2" data-h="${p[0]}||${nf(p[1])} · ${pf(p[1],tot)}"></path>`;
+    a=a2;});
+  const legend='<div class="legend">'+pairs.map((p,i)=>`<span><i style="background:${ser[i%8]}"></i>${p[0].replace('Bot Qualified – ','')}</span>`).join('')+'</div>';
+  el.innerHTML=`<svg viewBox="0 0 160 160" height="160" style="max-width:180px;margin:0 auto">${seg}
+    <text x="80" y="76" text-anchor="middle" class="num" style="fill:var(--ink);font-size:20px;font-weight:700">${nf(tot)}</text>
+    <text x="80" y="92" text-anchor="middle" style="fill:var(--ink-3);font-size:9px">with outcome</text></svg>${legend}`;
+  el.querySelectorAll('path[data-h]').forEach(n=>{const[a,b]=n.dataset.h.split('||');
+    n.onmousemove=e=>tipShow(`<b>${a}</b><br>${b}`,e);n.onmouseleave=tipHide;});
+}
+
+/* ---------- segment table ---------- */
+const DIM_LABELS={owner:'Pod / owner',city:'City',variant:'A/B variant',source:'Channel',webinar:'Webinar',role:'Role domain',exp:'Experience'};
+function renderDimSeg(){
+  document.getElementById('dimSeg').innerHTML=Object.keys(DIMS).map(k=>
+    `<button data-d="${k}" class="${k===DIM?'on':''}">${DIM_LABELS[k]||k}</button>`).join('');
+  document.querySelectorAll('#dimSeg button').forEach(b=>b.onclick=()=>{DIM=b.dataset.d;renderDimSeg();renderSeg();});
+}
+function renderSeg(){
+  const ix=idxRange(),rows=sumDim(DIM,ix).filter(r=>r.v[LX.leads]>0);
+  const cols=[['name','Segment'],['leads','Leads'],['connP','Connect %'],['qual','Qual %'],['vcB','VC booked'],['sale','Sales'],['saleP','Sale %']];
+  const enrich=rows.map(r=>{const L=r.v[LX.leads]||1;return{
+    name:r.name,leads:r.v[LX.leads],conn:r.v[LX.conn],connP:r.v[LX.conn]/L,
+    qualN:r.v[LX.qual],qual:r.v[LX.qual]/L,vcB:r.v[LX.vcB],sale:r.v[LX.sale],saleP:r.v[LX.sale]/L};});
+  enrich.sort((a,b)=>{const k=SORT.k;let av=a[k],bv=b[k];if(k==='name')return SORT.dir*(''+av).localeCompare(''+bv);return SORT.dir*(av-bv);});
+  const mxQ=Math.max(...enrich.map(r=>r.qual),1e-9);
+  const th=cols.map(c=>`<th data-k="${c[0]}" class="${SORT.k===c[0]?'on':''}">${c[1]}${SORT.k===c[0]?(SORT.dir<0?' ▾':' ▴'):''}</th>`).join('');
+  const body=enrich.slice(0,14).map(r=>`<tr>
+    <td>${r.name}</td><td class="num">${nf(r.leads)}</td>
+    <td class="num">${pf(r.conn,r.leads)}</td>
+    <td class="num">${pf(r.qualN,r.leads)}<span class="mini" style="width:${(r.qual/mxQ*34).toFixed(0)}px;background:${cssv('--s3')}"></span></td>
+    <td class="num">${nf(r.vcB)}</td><td class="num">${nf(r.sale)}</td>
+    <td class="num">${pf(r.sale,r.leads)}</td></tr>`).join('');
+  const el=document.getElementById('segTable');
+  el.innerHTML=`<thead><tr>${th}</tr></thead><tbody>${body}</tbody>`;
+  el.querySelectorAll('th').forEach(h=>h.onclick=()=>{const k=h.dataset.k;
+    if(SORT.k===k)SORT.dir*=-1;else{SORT.k=k;SORT.dir=k==='name'?1:-1;}renderSeg();});
+}
+
+/* ---------- sample table ---------- */
+function renderSample(){
+  const s=DATA.sample||[];
+  const head=['Date','Pod','City','Channel','Role','Bucket','Outcome','Qual','Sale'];
+  const rowc=o=>o.qual?cssv('--good'):cssv('--ink-3');
+  document.getElementById('sampleTable').innerHTML=
+    `<thead><tr>${head.map((h,i)=>`<th style="${i>0?'':''}">${h}</th>`).join('')}</tr></thead><tbody>`+
+    s.slice(0,40).map(r=>`<tr>
+      <td>${fmtD(r.date)}</td><td>${r.pod||'–'}</td><td>${r.city||'–'}</td><td>${r.source||'–'}</td>
+      <td>${r.role||'–'}</td><td>${r.bucket||'–'}</td>
+      <td><span class="pill" style="background:color-mix(in srgb,${rowc(r)} 15%,transparent);color:${rowc(r)}">${r.outcome}</span></td>
+      <td>${r.qual?'✓':''}</td><td>${r.sale?'✓':''}</td></tr>`).join('')+'</tbody>';
+}
+
+/* ---------- orchestration ---------- */
+function renderAll(){
+  const ix=idxRange();
+  document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days · ${nf(sumDaily(ix)[X.leads])} leads.`;
+  renderKPI();renderFunnel();renderImpact();renderTrends();renderMixes();renderDonut();renderDimSeg();renderSeg();renderSample();
+  const g=new Date(DATA.generated_at);
+  document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('foot').innerHTML=`Source: <span class="num">ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</span> · ${nf(M.rows)} leads · rebuilt daily from BigQuery · generated ${DATA.generated_at}`;
+}
+document.getElementById('rangeSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  RANGE=+b.dataset.r;document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.toggle('on',x===b));renderAll();});
+document.getElementById('themeBtn').onclick=()=>{
+  const cur=document.documentElement.getAttribute('data-theme');
+  const next=cur==='dark'?'light':cur==='light'?'dark':(matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark');
+  document.documentElement.setAttribute('data-theme',next);renderAll();};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',renderAll);
+renderAll();
+</script>
