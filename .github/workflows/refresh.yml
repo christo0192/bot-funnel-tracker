@@ -52,11 +52,13 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -e
-          # Canonical CI recipe: pull the project settings (uses the ORG/PROJECT env
-          # ids), then deploy the prebuilt static folder. Non-interactive, no hang.
-          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          url=$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")
+          # Pre-link the project (projectId + orgId) so deploy is non-interactive and
+          # never prompts. .vercelignore keeps .vercel out of the uploaded bundle.
+          mkdir -p .vercel
+          printf '{"projectId":"%s","orgId":"%s"}' "$VERCEL_PROJECT_ID" "$VERCEL_ORG_ID" > .vercel/project.json
+          url=$(timeout 180 vercel deploy --prod --yes --token="$VERCEL_TOKEN")
           echo "Deployed: $url"
+          echo "$url" > "$RUNNER_TEMP/url.txt"
 
       - name: Summary
         run: echo "Deployed https://bot-funnel-tracker.vercel.app at $(date -u +%FT%TZ)" >> "$GITHUB_STEP_SUMMARY"
