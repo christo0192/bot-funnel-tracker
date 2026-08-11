@@ -103,6 +103,8 @@ a{color:var(--accent)}
 .fstage .vals{text-align:right;font-size:13px}
 .fstage .vals b{font-weight:700}
 .fstage .pct{color:var(--ink-3);font-size:11.5px}
+.fstage.fbranch .nm{color:var(--crit);padding-left:16px;font-style:italic}
+.fstage.fbranch .nm::before{content:"↳ ";font-style:normal}
 .leak{color:var(--crit);font-weight:640}
 .callouts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
 @media(max-width:720px){.callouts{grid-template-columns:1fr}}
@@ -410,31 +412,35 @@ function renderKPI(){
 /* ---------- Funnel ---------- */
 function renderFunnel(){
   const ix=idxRange(),t=sumDaily(ix),L=t[X.leads]||1;
-  const stages=[
+  // main monotonic flow (Answered Q1 removed; VC done added after VC booked)
+  const main=[
     ['Leads',t[X.leads]],['Attempted',t[X.att]],['Connected',t[X.conn]],
-    ['Answered Q1',t[X.ans1]],['Bot qualified',t[X.qual]],
-    ['VC booked',t[X.vcS]+t[X.vcA]],['PA connected',t[X.paConn]],['Sale',t[X.sale]]];
-  // biggest absolute drop
+    ['Bot qualified',t[X.qual]],['VC booked',t[X.vcS]+t[X.vcA]],['VC done',t[X.vcDone]],
+    ['Sale',t[X.sale]]];
   let leakIdx=1,leakDrop=-1;
-  for(let i=1;i<stages.length;i++){const dr=stages[i-1][1]-stages[i][1];if(dr>leakDrop){leakDrop=dr;leakIdx=i;}}
+  for(let i=1;i<main.length;i++){const dr=main[i-1][1]-main[i][1];if(dr>leakDrop){leakDrop=dr;leakIdx=i;}}
   const col=cssv('--seq-3');
+  const rowHTML=(name,val,{step=null,isLeak=false,branch=false}={})=>{
+    const w=Math.max(val/L*100,0.6), bg=(branch||isLeak)?'var(--crit)':col;
+    const tail=branch?`branch · ${pf(val,t[X.conn])} of connected`:(step!=null?`↳ ${step}${isLeak?' · biggest leak':''}`:'100%');
+    return `<div class="fstage${branch?' fbranch':''}"><div class="nm">${name}</div>
+      <div class="fbar" data-tip="${name}|${nf(val)}|${pf(val,L)} of leads|${branch?'branch off connected':(step!=null?'step '+step:'start')}">
+        <span style="width:${w}%;background:${bg}${branch?';opacity:.8':''}"></span></div>
+      <div class="vals"><b class="num">${nf(val)}</b> <span class="pct num">${pf(val,L)}</span><br>
+      <span class="pct ${isLeak?'leak':''}">${tail}</span></div></div>`;
+  };
   let html='';
-  stages.forEach((s,i)=>{
-    const w=Math.max(s[1]/L*100,0.6), step=i?pf(s[1],stages[i-1][1]):'100%';
-    const isLeak=i===leakIdx;
-    html+=`<div class="fstage"><div class="nm">${s[0]}</div>
-      <div class="fbar" data-tip="${s[0]}|${nf(s[1])}|${pf(s[1],L)} of leads|step ${step}">
-        <span style="width:${w}%;background:${isLeak?'var(--crit)':col}"></span></div>
-      <div class="vals"><b class="num">${nf(s[1])}</b> <span class="pct num">${pf(s[1],L)}</span><br>
-      <span class="pct ${isLeak?'leak':''}">↳ ${step}${isLeak?' · biggest leak':''}</span></div></div>`;
+  main.forEach((s,i)=>{
+    html+=rowHTML(s[0],s[1],{step:i?pf(s[1],main[i-1][1]):null,isLeak:i===leakIdx});
+    if(s[0]==='Bot qualified') html+=rowHTML('Bot disqualified',t[X.dq],{branch:true});
   });
   document.getElementById('funnel').innerHTML=html;
   bindTip('funnel','.fbar');
   // callouts
   const unbooked=t[X.qual]-(t[X.vcS]+t[X.vcA]);
-  const dqv=sumHist('dq',ix), vagueI=M.dq.indexOf('Vague answers'), psaI=M.dq.indexOf('PSA review needed');
+  const dqv=sumHist('dq',ix), psaI=M.dq.indexOf('PSA review needed');
   const co=[
-    {c:'crit',t:'Primary gap',v:`${stages[leakIdx-1][0]} → ${stages[leakIdx][0]}`,d:`${nf(leakDrop)} leads lost (${pf(leakDrop,L)})`},
+    {c:'crit',t:'Primary gap',v:`${main[leakIdx-1][0]} → ${main[leakIdx][0]}`,d:`${nf(leakDrop)} leads lost (${pf(leakDrop,L)})`},
     {c:'warn',t:'Qualified, not booked',v:nf(unbooked),d:`${pf(unbooked,t[X.qual])} of qualified — hot leads to chase`},
     {c:'',t:'PSA review queue',v:nf(dqv[psaI]||0),d:`human 2-min reviews pending`},
   ];
@@ -616,11 +622,11 @@ function renderAnswerDepth(){
   for(let k=1;k<=6;k++) stages.push([`Answered ≥${k}`,cum(k)]);
   stages.push(['Bot qualified',t[X.qual]]);
   let li=1,ld=-1; for(let i=1;i<stages.length;i++){const dr=stages[i-1][1]-stages[i][1]; if(dr>ld){ld=dr;li=i;}}
-  const col=cssv('--seq-3');
+  const barCol=(s,leak)=> leak?'var(--crit)': (s[0].startsWith('Answered')?'var(--accent)':cssv('--ink-3'));
   let html='<div class="blist">'+stages.map((s,i)=>{
-    const leak=i===li, step=i?pf(s[1],stages[i-1][1]):'—';
+    const leak=i===li, step=i?pf(s[1],stages[i-1][1]):'—', hl=s[0].startsWith('Answered');
     return `<div class="brow" data-tip="${s[0]}|${nf(s[1])}|${pf(s[1],conn)} of connected|step ${step}">
-      <span class="bn">${s[0]}</span><div class="btrack"><span style="width:${Math.max(s[1]/conn*100,0.6)}%;background:${leak?'var(--crit)':col}"></span></div>
+      <span class="bn" style="${hl?'color:var(--ink);font-weight:600':''}">${s[0]}</span><div class="btrack"><span style="width:${Math.max(s[1]/conn*100,0.6)}%;background:${barCol(s,leak)}"></span></div>
       <span class="bv num">${pf(s[1],conn)}</span></div>`;}).join('')+'</div>';
   html+=`<div class="hint" style="margin-top:10px">Steepest drop: <b>${stages[li-1][0]} → ${stages[li][0]}</b>,
     losing <b>${nf(ld)}</b> leads (${pf(ld,conn)} of connected) — the highest-leverage point to fix the script.</div>`;
@@ -685,7 +691,7 @@ function renderAnsDist(){
   const ix=idxRange(), ans=sumHist('ans',ix);
   const labels=['0 ans','1','2','3','4','5','6','7','8','9'];
   const pairs=labels.map((l,i)=>[l,ans[i]]).filter(p=>p[1]>0);
-  barsInto('ansDist',pairs,{color:(i)=>i===0?cssv('--ink-3'):cssv('--seq-3')});
+  barsInto('ansDist',pairs,{color:(i)=>pairs[i][0]==='0 ans'?cssv('--ink-3'):cssv('--accent')});
 }
 function renderAttConn(dim,elId){
   const ix=idxRange();
