@@ -105,6 +105,12 @@ a{color:var(--accent)}
 .fstage .pct{color:var(--ink-3);font-size:11.5px}
 .fstage.fbranch .nm{color:var(--crit);padding-left:16px;font-style:italic}
 .fstage.fbranch .nm::before{content:"↳ ";font-style:normal}
+.fstage.fsub .nm{color:var(--accent);padding-left:16px;font-weight:600}
+.fstage.fsub .nm::before{content:"↳ ";}
+.sgleg{display:flex;gap:8px;align-items:baseline;font-size:12px;padding:3px 0;flex-wrap:wrap}
+.sgleg b{min-width:132px;color:var(--ink)}
+.sgdot{width:9px;height:9px;border-radius:3px;flex:0 0 auto;position:relative;top:1px}
+.sgvals{color:var(--ink-2);font-size:11.5px}
 .leak{color:var(--crit);font-weight:640}
 .callouts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
 @media(max-width:720px){.callouts{grid-template-columns:1fr}}
@@ -201,15 +207,11 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="card"><div class="cardhead"><div><h3>Disqualification reasons</h3><div class="hint">Which gate fired, for disqualified leads</div></div></div><div id="dqBars"></div><div id="dqNote"></div></div>
     <div class="card"><div class="cardhead"><div><h3>Qualified — what happens next</h3><div class="hint">Booking outcome of qualified leads (qualification has no single "reason" — it's a pass when no gate fires)</div></div></div><div id="qualOutcome"></div></div>
   </div>
-  <div class="grid c2b">
-    <div class="card"><div class="cardhead"><div><h3>Disqualification — reclaimable vs hard</h3>
-      <div class="hint">Reclaimable = a PSA can still flip it (undecided / vague / unclear). Hard = a policy gate (YOE, CTC, non-tech, target, intent) that won't change.</div></div></div><div id="dqRecover"></div></div>
-    <div class="card">
-      <div class="cardhead"><div><h3>Qualification drivers by segment</h3>
-        <div class="hint">Qual % vs DQ % per segment (≥20 leads), best first</div></div>
-        <div class="seg" id="qdimSeg"></div></div>
-      <div id="qualDrivers"></div>
-    </div>
+  <div class="card">
+    <div class="cardhead"><div><h3>Qualification drivers by segment</h3>
+      <div class="hint">Qual % vs DQ % per segment (≥20 leads), best first</div></div>
+      <div class="seg" id="qdimSeg"></div></div>
+    <div id="qualDrivers"></div>
   </div>
 
   <div class="sectionlabel">3 · Question &amp; answer-wise connects</div>
@@ -243,8 +245,8 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
 
   <div class="sectionlabel">More insights</div>
   <div class="grid c2b">
-    <div class="card"><div class="cardhead"><div><h3>Booking outcomes</h3><div class="hint">Qualified-lead sub-status mix</div></div></div><div id="outDonut"></div></div>
     <div class="card"><div class="cardhead"><div><h3>Connection buckets</h3><div class="hint">How the call attempt landed</div></div></div><div id="bukBars"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Call attempts to reach</h3><div class="hint">Retry-ladder distribution</div></div></div><div id="attBars"></div></div>
   </div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Qualified vs disqualified by day of week</h3>
@@ -252,7 +254,6 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="card"><div class="cardhead"><div><h3>Call volume by day of week</h3>
       <div class="hint">Where the calling effort lands across the week</div></div></div><div id="dowVol"></div></div>
   </div>
-  <div class="card"><div class="cardhead"><div><h3>Call attempts to reach</h3><div class="hint">Retry-ladder distribution</div></div></div><div id="attBars"></div></div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Daily leads &amp; connect rate</h3></div></div><div id="trendLeads"></div></div>
     <div class="card"><div class="cardhead"><div><h3>Qualification rate over time</h3><div class="hint">Bot Qualified as % of leads (7-day average)</div></div></div><div id="trendQual"></div></div>
@@ -263,6 +264,7 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="cardhead"><div><h3>Lead status — CRM stage groups</h3>
       <div class="hint">Where these leads currently sit in the CRM (grouped from lead_status)</div></div></div>
     <div id="sgBars"></div>
+    <div id="sgLegend"></div>
   </div>
 
   <div class="sectionlabel">Segment performance</div>
@@ -281,6 +283,7 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
       <select id="qPod" class="qsel"><option value="">Pod: any</option></select>
       <select id="qPa" class="qsel"><option value="">PA: any</option></select>
       <select id="qStatus" class="qsel"><option value="">Lead status: any</option></select>
+      <select id="qBucket" class="qsel"><option value="">Connection bucket: any</option></select>
       <select id="qQual" class="qsel"><option value="">Qualification: any</option><option value="qual">Bot qualified</option><option value="dq">Bot disqualified</option><option value="neither">Neither (no verdict)</option></select>
       <select id="qTat" class="qsel"><option value="">Max-ans TAT: any</option></select>
       <select id="qVcb" class="qsel"><option value="">VC booked: any</option><option value="1">Yes</option><option value="0">No</option></select>
@@ -420,11 +423,15 @@ function renderFunnel(){
   let leakIdx=1,leakDrop=-1;
   for(let i=1;i<main.length;i++){const dr=main[i-1][1]-main[i][1];if(dr>leakDrop){leakDrop=dr;leakIdx=i;}}
   const col=cssv('--seq-3');
-  const rowHTML=(name,val,{step=null,isLeak=false,branch=false}={})=>{
-    const w=Math.max(val/L*100,0.6), bg=(branch||isLeak)?'var(--crit)':col;
-    const tail=branch?`branch · ${pf(val,t[X.conn])} of connected`:(step!=null?`↳ ${step}${isLeak?' · biggest leak':''}`:'100%');
-    return `<div class="fstage${branch?' fbranch':''}"><div class="nm">${name}</div>
-      <div class="fbar" data-tip="${name}|${nf(val)}|${pf(val,L)} of leads|${branch?'branch off connected':(step!=null?'step '+step:'start')}">
+  const rowHTML=(name,val,{step=null,isLeak=false,branch=false,sub=false}={})=>{
+    const w=Math.max(val/L*100,0.6);
+    const bg=branch?'var(--crit)':sub?'var(--accent)':(isLeak?'var(--crit)':col);
+    const cls=branch?' fbranch':sub?' fsub':'';
+    const tail=branch?`branch · ${pf(val,t[X.conn])} of connected`
+             :sub?`${pf(val,t[X.conn])} of connected`
+             :(step!=null?`↳ ${step}${isLeak?' · biggest leak':''}`:'100%');
+    return `<div class="fstage${cls}"><div class="nm">${name}</div>
+      <div class="fbar" data-tip="${name}|${nf(val)}|${pf(val,L)} of leads|${branch||sub?pf(val,t[X.conn])+' of connected':(step!=null?'step '+step:'start')}">
         <span style="width:${w}%;background:${bg}${branch?';opacity:.8':''}"></span></div>
       <div class="vals"><b class="num">${nf(val)}</b> <span class="pct num">${pf(val,L)}</span><br>
       <span class="pct ${isLeak?'leak':''}">${tail}</span></div></div>`;
@@ -432,6 +439,10 @@ function renderFunnel(){
   let html='';
   main.forEach((s,i)=>{
     html+=rowHTML(s[0],s[1],{step:i?pf(s[1],main[i-1][1]):null,isLeak:i===leakIdx});
+    if(s[0]==='Connected'){
+      html+=rowHTML('0 answers',t[X.conn0],{sub:true});
+      html+=rowHTML('≥1 answer',t[X.conn]-t[X.conn0],{sub:true});
+    }
     if(s[0]==='Bot qualified') html+=rowHTML('Bot disqualified',t[X.dq],{branch:true});
   });
   document.getElementById('funnel').innerHTML=html;
@@ -711,7 +722,7 @@ function renderAttConn(dim,elId){
 /* ---------- lead explorer (all leads: search + paginate + CSV) ---------- */
 const LEADS=DATA.leads||[], LC={}; (DATA.leadCols||[]).forEach((k,i)=>LC[k]=i);
 let PAGE=0; const PSIZE=25;
-const FILTER_IDS=['qEmail','qPod','qPa','qStatus','qQual','qTat','qVcb','qSale','qDcd','qRte'];
+const FILTER_IDS=['qEmail','qPod','qPa','qStatus','qBucket','qQual','qTat','qVcb','qSale','qDcd','qRte'];
 const qval=id=>(document.getElementById(id).value||'').trim().toLowerCase();  // email substring
 const gval=id=>document.getElementById(id).value||'';                         // exact select value
 function leadFilterActive(){return FILTER_IDS.some(id=>document.getElementById(id).value);}
@@ -719,10 +730,11 @@ function populateFilters(){
   const uniq=idx=>[...new Set(LEADS.map(r=>r[idx]).filter(v=>v!==''&&v!=null))].sort((a,b)=>(''+a).localeCompare(''+b));
   const fill=(id,vals)=>{const s=document.getElementById(id);vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o);});};
   fill('qPod',uniq(LC.pod)); fill('qPa',uniq(LC.pa)); fill('qStatus',uniq(LC.status));
+  fill('qBucket',M.buckets.filter(b=>LEADS.some(r=>r[LC.bucket]===b)));
   fill('qTat',M.ttc.filter(t=>LEADS.some(r=>r[LC.tat]===t)));
 }
 function filteredLeads(){
-  const e=qval('qEmail'),pod=gval('qPod'),pa=gval('qPa'),st=gval('qStatus'),
+  const e=qval('qEmail'),pod=gval('qPod'),pa=gval('qPa'),st=gval('qStatus'),bk=gval('qBucket'),
         ql=gval('qQual'),tat=gval('qTat'),vcb=gval('qVcb'),sale=gval('qSale'),dcd=gval('qDcd'),rte=gval('qRte');
   if(!leadFilterActive()) return LEADS;
   return LEADS.filter(r=>
@@ -730,6 +742,7 @@ function filteredLeads(){
     (!pod || r[LC.pod]===pod) &&
     (!pa  || r[LC.pa]===pa) &&
     (!st  || r[LC.status]===st) &&
+    (!bk  || r[LC.bucket]===bk) &&
     (!ql  || (ql==='qual'? r[LC.qual]===1 : ql==='dq'? r[LC.dq]===1 : (r[LC.qual]!==1 && r[LC.dq]!==1))) &&
     (!tat || r[LC.tat]===tat) &&
     (vcb===''  || String(r[LC.vcb])===vcb) &&
@@ -743,7 +756,7 @@ function renderLeads(){
   const rows=filteredLeads(), total=rows.length, pages=Math.max(1,Math.ceil(total/PSIZE));
   if(PAGE>=pages)PAGE=pages-1; if(PAGE<0)PAGE=0;
   const slice=rows.slice(PAGE*PSIZE,PAGE*PSIZE+PSIZE);
-  const head=['Lead ID','Date','1st attempt','Last attempt','Attempts','Connects','1st connect','Last connect','Max ans','Max-ans TAT','Qual','VC booked','DCD','RTE','Sale'];
+  const head=['Lead ID','Date','1st attempt','Last attempt','Attempts','Connects','1st connect','Last connect','Bucket','Max ans','Max-ans TAT','Qual','VC booked','DCD','RTE','Sale'];
   const yn=v=>v?'✓':'';
   document.getElementById('leadsTable').innerHTML='<thead><tr>'+head.map(h=>`<th>${h}</th>`).join('')+
     '</tr></thead><tbody>'+slice.map(r=>{
@@ -752,6 +765,7 @@ function renderLeads(){
         <td>${fmtOff(r[LC.att1])}</td><td>${fmtOff(r[LC.attN])}</td>
         <td class="num">${r[LC.att]}</td><td class="num">${r[LC.conn]}</td>
         <td>${fmtOff(r[LC.con1])}</td><td>${fmtOff(r[LC.conN])}</td>
+        <td>${esc(r[LC.bucket])||'–'}</td>
         <td class="num">${r[LC.maxans]}</td><td>${esc(r[LC.tat])||'–'}</td>
         <td style="color:${qc};font-weight:700">${yn(r[LC.qual])}</td>
         <td>${yn(r[LC.vcb])}</td><td>${yn(r[LC.dcd])}</td><td>${yn(r[LC.rte])}</td><td>${yn(r[LC.sale])}</td></tr>`;
@@ -766,8 +780,8 @@ function renderLeads(){
 }
 function exportCSV(){
   const rows=filteredLeads();
-  const cols=['email','pod','pa','status','date','att1','attN','att','conn','con1','conN','maxans','tat','qual','dq','vcb','dcd','rte','sale'];
-  const head=['lead_email','pod','pa','lead_status','lead_date','first_attempt_date','last_attempt_date','total_attempts','connects','first_connect_date','last_connect_date','max_answers','max_answer_tat','qualified','disqualified','vc_booked','dcd','rte','sale'];
+  const cols=['email','pod','pa','status','bucket','date','att1','attN','att','conn','con1','conN','maxans','tat','qual','dq','vcb','dcd','rte','sale'];
+  const head=['lead_email','pod','pa','lead_status','connection_bucket','lead_date','first_attempt_date','last_attempt_date','total_attempts','connects','first_connect_date','last_connect_date','max_answers','max_answer_tat','qualified','disqualified','vc_booked','dcd','rte','sale'];
   const DATEC=['date','att1','attN','con1','conN'], FLAGC=['qual','dq','vcb','dcd','rte','sale'];
   const cq=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   const lines=[head.join(',')];
@@ -794,6 +808,16 @@ function renderSG(){
   const pairs=M.sg.map((l,i)=>[l,sg[i]]);
   barsInto('sgBars',pairs,{color:(i,p)=>cmap[p[0]]||cssv('--s1')});
 }
+function renderSGLegend(){
+  const map=DATA.sgMap||{};
+  const cmap={'Enrolled':cssv('--good'),'In progress':cssv('--s1'),'Qualified/Scheduled':cssv('--s3'),
+    'Interested/Nurture':cssv('--s4'),'Open/New':cssv('--ink-3'),'Lost':cssv('--crit'),'Junk/Inactive':cssv('--s7')};
+  const rows=M.sg.filter(g=>map[g]&&map[g].length).map(g=>
+    `<div class="sgleg"><span class="sgdot" style="background:${cmap[g]||cssv('--s1')}"></span>
+      <b>${g}</b><span class="sgvals">${map[g].map(esc).join(' · ')}</span></div>`).join('');
+  document.getElementById('sgLegend').innerHTML=
+    `<div class="hint" style="margin:12px 0 6px">Which lead_status values fall into each group:</div>${rows}`;
+}
 
 /* ---------- orchestration ---------- */
 function renderAll(){
@@ -801,9 +825,9 @@ function renderAll(){
   const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
   document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
   renderKPI();renderFunnel();renderImpact();
-  renderQualOutcome();renderAnswerDepth();renderAnsDist();renderQdimSeg();renderQualDrivers();renderDQRecover();renderDOW();renderDOWVol();
+  renderQualOutcome();renderAnswerDepth();renderAnsDist();renderQdimSeg();renderQualDrivers();renderDOW();renderDOWVol();
   renderAttConn('owner','podAtt');renderAttConn('pa','paAtt');
-  renderTrends();renderMixes();renderDonut();renderSG();renderDimSeg();renderSeg();
+  renderTrends();renderMixes();renderSG();renderSGLegend();renderDimSeg();renderSeg();
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('foot').innerHTML=`Source: <span class="num">ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</span> · ${nf(M.rows)} leads · rebuilt daily from BigQuery · generated ${DATA.generated_at}`;

@@ -227,14 +227,14 @@ def main():
     # the manager specified. All dates are day-offsets from epoch (null -> None).
     doff = lambda d: (d - epoch).days if d else None
     VC_BOOKED = {"Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled"}
-    LEAD_COLS = ["email", "pod", "pa", "status",
+    LEAD_COLS = ["email", "pod", "pa", "status", "bucket",
                  "date", "att1", "attN", "att", "conn", "con1", "conN",
                  "maxans", "tat", "qual", "dq", "vcb", "dcd", "rte", "sale"]
     leads_out = []
     for r in rows:
         dq = 1 if r["disqualification_reason"] not in (None, "", "None") else 0
         leads_out.append([
-            r["lead_email"] or "", r["pod"] or "", r["pa_name"] or "", r["lead_status"] or "",
+            r["lead_email"] or "", r["pod"] or "", r["pa_name"] or "", r["lead_status"] or "", r["bot_bucket"] or "",
             day_off[r["lead_date"]], doff(r["bot_first_attempt_date"]), doff(r["bot_last_contacted_date"]),
             r["total_call_attempts"] or 0, r["total_connected_calls"] or 0,
             doff(r["bot_first_connect_date"]), doff(r["bot_last_connected_date"]),
@@ -243,7 +243,13 @@ def main():
             b(r["dcd_flag"]), b(r["rte_flag"]), b(r["sale_flag"]),
         ])
     # newest first (by lead_date) so the default view reads like recent activity
-    leads_out.sort(key=lambda x: x[4], reverse=True)
+    leads_out.sort(key=lambda x: x[5], reverse=True)
+
+    # stage-group -> the actual lead_status values that map into it (for the CRM legend)
+    sg_map = {g: set() for g in SG}
+    for r in rows:
+        sg_map[stage_group(r["lead_status"])].add((r["lead_status"] or "(blank)").strip())
+    sg_map = {g: sorted(v) for g, v in sg_map.items()}
 
     out = {
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
@@ -255,6 +261,7 @@ def main():
         "daily": daily,
         "dims": {name: {"v": dims[name]["labels"], "d": dims[name]["d"]} for name in dims},
         "hist": hist,
+        "sgMap": sg_map,
         "leadCols": LEAD_COLS,
         "leads": leads_out,
     }
