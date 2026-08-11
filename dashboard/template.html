@@ -196,22 +196,26 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
 
   <div class="sectionlabel">2 · Qualification &amp; disqualification reasoning</div>
   <div class="grid c2b">
-    <div class="card"><div class="cardhead"><div><h3>Disqualification reasons</h3><div class="hint">Which gates fire</div></div></div><div id="dqBars"></div><div id="dqNote"></div></div>
-    <div class="card"><div class="cardhead"><div><h3>Disqualification — reclaimable vs hard</h3><div class="hint">How much DQ a PSA/human could still recover</div></div></div><div id="dqRecover"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Disqualification reasons</h3><div class="hint">Which gate fired, for disqualified leads</div></div></div><div id="dqBars"></div><div id="dqNote"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Qualified — what happens next</h3><div class="hint">Booking outcome of qualified leads (qualification has no single "reason" — it's a pass when no gate fires)</div></div></div><div id="qualOutcome"></div></div>
   </div>
-  <div class="card">
-    <div class="cardhead"><div><h3>Qualification drivers by segment</h3>
-      <div class="hint">Qual % vs DQ % per segment (≥20 leads), best first</div></div>
-      <div class="seg" id="qdimSeg"></div></div>
-    <div id="qualDrivers"></div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>Disqualification — reclaimable vs hard</h3>
+      <div class="hint">Reclaimable = a PSA can still flip it (undecided / vague / unclear). Hard = a policy gate (YOE, CTC, non-tech, target, intent) that won't change.</div></div></div><div id="dqRecover"></div></div>
+    <div class="card">
+      <div class="cardhead"><div><h3>Qualification drivers by segment</h3>
+        <div class="hint">Qual % vs DQ % per segment (≥20 leads), best first</div></div>
+        <div class="seg" id="qdimSeg"></div></div>
+      <div id="qualDrivers"></div>
+    </div>
   </div>
 
   <div class="sectionlabel">3 · Question &amp; answer-wise connects</div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Conversation depth — where calls drop</h3>
-      <div class="hint">Of connected leads, how far the scripted call gets before it ends</div></div></div><div id="answerDepth"></div></div>
+      <div class="hint">Cumulative: of connected leads, how many reached at LEAST each step (≥1…≥6). Flags the biggest single drop.</div></div></div><div id="answerDepth"></div></div>
     <div class="card"><div class="cardhead"><div><h3>Answers reached — distribution</h3>
-      <div class="hint">How many questions leads answered on the call</div></div></div><div id="ansDist"></div></div>
+      <div class="hint">Exact count: how many leads answered EXACTLY N questions (0–9). The raw spread behind the funnel.</div></div></div><div id="ansDist"></div></div>
   </div>
 
   <div class="sectionlabel">4 · PA &amp; Pod-wise attempts and connects</div>
@@ -237,9 +241,8 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
 
   <div class="sectionlabel">More insights</div>
   <div class="grid c2b">
-    <div class="card"><div class="cardhead"><div><h3>A/B bot variant scorecard</h3>
-      <div class="hint">Same leads, two bot versions — which one qualifies more</div></div></div><div id="abTest"></div></div>
     <div class="card"><div class="cardhead"><div><h3>Booking outcomes</h3><div class="hint">Qualified-lead sub-status mix</div></div></div><div id="outDonut"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Connection buckets</h3><div class="hint">How the call attempt landed</div></div></div><div id="bukBars"></div></div>
   </div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Qualified vs disqualified by day of week</h3>
@@ -247,10 +250,7 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="card"><div class="cardhead"><div><h3>Call volume by day of week</h3>
       <div class="hint">Where the calling effort lands across the week</div></div></div><div id="dowVol"></div></div>
   </div>
-  <div class="grid c2b">
-    <div class="card"><div class="cardhead"><div><h3>Connection buckets</h3><div class="hint">How the call attempt landed</div></div></div><div id="bukBars"></div></div>
-    <div class="card"><div class="cardhead"><div><h3>Call attempts to reach</h3><div class="hint">Retry-ladder distribution</div></div></div><div id="attBars"></div></div>
-  </div>
+  <div class="card"><div class="cardhead"><div><h3>Call attempts to reach</h3><div class="hint">Retry-ladder distribution</div></div></div><div id="attBars"></div></div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Daily leads &amp; connect rate</h3></div></div><div id="trendLeads"></div></div>
     <div class="card"><div class="cardhead"><div><h3>Qualification rate over time</h3><div class="hint">Bot Qualified as % of leads (7-day average)</div></div></div><div id="trendQual"></div></div>
@@ -566,7 +566,7 @@ function renderDonut(){
 }
 
 /* ---------- segment table ---------- */
-const DIM_LABELS={owner:'Pod / owner',city:'City',variant:'A/B variant',source:'Channel',webinar:'Webinar',role:'Role domain',exp:'Experience',dow:'Day of week'};
+const DIM_LABELS={owner:'Pod / owner',pa:'PA',city:'City',source:'Channel',webinar:'Webinar',role:'Role domain',exp:'Experience',dow:'Day of week'};
 function renderDimSeg(){
   document.getElementById('dimSeg').innerHTML=Object.keys(DIMS).map(k=>
     `<button data-d="${k}" class="${k===DIM?'on':''}">${DIM_LABELS[k]||k}</button>`).join('');
@@ -596,30 +596,18 @@ function renderSeg(){
 /* ---------- qualification intelligence ---------- */
 let QDIM='role';
 const QDIM_LABELS={role:'Role',exp:'Experience',source:'Channel',owner:'Pod',dow:'Day of week',webinar:'Webinar',city:'City'};
-function renderABTest(){
-  const ix=idxRange(), rows=sumDim('variant',ix), by={}; rows.forEach(r=>by[r.name]=r.v);
-  const c=by['control']||new Array(M.LM).fill(0), t=by['test']||new Array(M.LM).fill(0);
-  const defs=[
-    ['Leads', v=>nf(v[LX.leads]), null,false],
-    ['Connect %', v=>pf(v[LX.conn],v[LX.leads]), v=>v[LX.conn]/(v[LX.leads]||1),false],
-    ['Answered ≥1 %', v=>pf(v[LX.ans1],v[LX.leads]), v=>v[LX.ans1]/(v[LX.leads]||1),false],
-    ['Answered ≥6 %', v=>pf(v[LX.ans6],v[LX.leads]), v=>v[LX.ans6]/(v[LX.leads]||1),false],
-    ['Qualified %', v=>pf(v[LX.qual],v[LX.leads]), v=>v[LX.qual]/(v[LX.leads]||1),false],
-    ['Disqualified %', v=>pf(v[LX.dq],v[LX.leads]), v=>v[LX.dq]/(v[LX.leads]||1),true],
-    ['Sale %', v=>pf(v[LX.sale],v[LX.leads]), v=>v[LX.sale]/(v[LX.leads]||1),false],
-  ];
-  const body=defs.map(([lbl,fmt,rate,lowGood])=>{
-    let cW='',tW='';
-    if(rate){const cv=rate(c),tv=rate(t); if(Math.abs(cv-tv)>1e-9){const cwin=lowGood?cv<tv:cv>tv; cwin?cW='win':tW='win';}}
-    return `<tr><td>${lbl}</td><td class="num ${cW}">${fmt(c)}</td><td class="num ${tW}">${fmt(t)}</td></tr>`;
-  }).join('');
-  const cq=c[LX.qual]/(c[LX.leads]||1), tq=t[LX.qual]/(t[LX.leads]||1);
-  const lift=cq?((tq-cq)/cq*100):0, winner=Math.abs(tq-cq)<1e-9?'tie':(tq>cq?'test':'control');
-  document.getElementById('abTest').innerHTML=
-    `<div class="callout ${winner==='tie'?'':'good'}" style="margin-bottom:10px"><div class="t">Qualification winner</div>
-      <div class="v num">${winner==='tie'?'—':winner.toUpperCase()}</div>
-      <div class="d">${winner==='tie'?'no measurable gap yet':`test ${(tq*100).toFixed(1)}% vs control ${(cq*100).toFixed(1)}% qualified — ${winner} wins${(cq>0&&tq>0)?` (${Math.abs(lift).toFixed(0)}% ${lift>0?'higher':'lower'})`:''}`}</div></div>
-    <div class="scroll"><table class="cmp"><thead><tr><th>Metric</th><th>Control</th><th>Test</th></tr></thead><tbody>${body}</tbody></table></div>`;
+function renderQualOutcome(){
+  const ix=idxRange(), out=sumHist('out',ix), t=sumDaily(ix);
+  const idxs=M.out.map((l,i)=>[l,out[i]]).filter(p=>p[0].startsWith('Bot Qualified')&&p[1]>0).sort((a,b)=>b[1]-a[1]);
+  const withSub=idxs.reduce((s,p)=>s+p[1],0);
+  const colOf=l=> l.includes('VC scheduled')?cssv('--good'): l.includes('VC alt')?cssv('--s3'):
+    l.includes('denied')?cssv('--warn'): l.includes('Retrying')?cssv('--s4'):
+    l.includes('Retries over')?cssv('--crit'):cssv('--ink-3');
+  const pretty=l=> l==='Bot Qualified'?'Qualified (no sub-status yet)':l.replace('Bot Qualified – ','');
+  barsInto('qualOutcome', idxs.map(p=>[pretty(p[0]),p[1]]), {color:(i)=>colOf(idxs[i][0])});
+  document.getElementById('qualOutcome').insertAdjacentHTML('beforeend',
+    `<div class="hint" style="margin-top:10px"><b>${nf(t[X.qual])}</b> bot-qualified in total; <b>${nf(withSub)}</b> carry a booking sub-status above.
+     Qualification is a pass when no gate fires, so there is no per-lead "reason" — the meaningful metric is what qualified leads do next.</div>`);
 }
 function renderAnswerDepth(){
   const ix=idxRange(), ans=sumHist('ans',ix), t=sumDaily(ix), conn=t[X.conn]||1;
@@ -807,7 +795,7 @@ function renderAll(){
   const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
   document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
   renderKPI();renderFunnel();renderImpact();
-  renderABTest();renderAnswerDepth();renderAnsDist();renderQdimSeg();renderQualDrivers();renderDQRecover();renderDOW();renderDOWVol();
+  renderQualOutcome();renderAnswerDepth();renderAnsDist();renderQdimSeg();renderQualDrivers();renderDQRecover();renderDOW();renderDOWVol();
   renderAttConn('owner','podAtt');renderAttConn('pa','paAtt');
   renderTrends();renderMixes();renderDonut();renderSG();renderDimSeg();renderSeg();
   const g=new Date(DATA.generated_at);

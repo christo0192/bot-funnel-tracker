@@ -92,7 +92,6 @@ DIMS_SRC = {
     "owner": "pod",
     "pa": "pa_name",
     "city": "city",
-    "variant": "ab_test_variant",
     "source": "channel",
     "webinar": "webinar_type",
     "role": "role_domain",
@@ -100,7 +99,7 @@ DIMS_SRC = {
 }
 
 SELECT_COLS = [
-    "lead_date","pod","city","ab_test_variant","channel","webinar_type","role_domain",
+    "lead_date","pod","city","channel","webinar_type","role_domain",
     "work_ex_category","lead_status","bot_bucket","disqualification_reason",
     "phase2_outcome","time_to_connect_bucket","bot_connect_to_pa_bucket",
     "total_call_attempts","best_questions_answered",
