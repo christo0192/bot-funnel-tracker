@@ -67,9 +67,12 @@ a{color:var(--accent)}
 /* grid */
 .grid{display:grid;gap:14px}
 .k5{grid-template-columns:repeat(5,1fr)}
-.kpiwrap{grid-template-columns:repeat(4,1fr)}
-@media(max-width:1080px){.kpiwrap{grid-template-columns:repeat(2,1fr)}}
-.kpi .big{font-size:26px}
+.kpiwrap{grid-template-columns:repeat(auto-fit,minmax(158px,1fr))}
+@media(max-width:640px){.kpiwrap{grid-template-columns:repeat(2,1fr)}}
+.kpi{padding:12px 13px 10px}
+.kpi .big{font-size:21px}
+.kpi .spark svg{height:26px}
+.kpi .lbl{font-size:11px}
 .c2{grid-template-columns:2fr 1fr}
 .c2b{grid-template-columns:1fr 1fr}
 .c3{grid-template-columns:repeat(3,1fr)}
@@ -182,7 +185,39 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
 
   <div class="grid kpiwrap" id="kpis"></div>
 
-  <div class="sectionlabel">Where the pipeline leaks — lead → sale</div>
+  <div class="sectionlabel">1 · Time to first connect</div>
+  <div class="card"><div class="cardhead"><div><h3>Time to first connect</h3>
+    <div class="hint">Lag from lead to the bot's first successful connect (of connected leads)</div></div></div><div id="ttcBars"></div></div>
+
+  <div class="sectionlabel">2 · Qualification &amp; disqualification reasoning</div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>Disqualification reasons</h3><div class="hint">Which gates fire</div></div></div><div id="dqBars"></div><div id="dqNote"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Disqualification — reclaimable vs hard</h3><div class="hint">How much DQ a PSA/human could still recover</div></div></div><div id="dqRecover"></div></div>
+  </div>
+  <div class="card">
+    <div class="cardhead"><div><h3>Qualification drivers by segment</h3>
+      <div class="hint">Qual % vs DQ % per segment (≥20 leads), best first</div></div>
+      <div class="seg" id="qdimSeg"></div></div>
+    <div id="qualDrivers"></div>
+  </div>
+
+  <div class="sectionlabel">3 · Question &amp; answer-wise connects</div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>Conversation depth — where calls drop</h3>
+      <div class="hint">Of connected leads, how far the scripted call gets before it ends</div></div></div><div id="answerDepth"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Answers reached — distribution</h3>
+      <div class="hint">How many questions leads answered on the call</div></div></div><div id="ansDist"></div></div>
+  </div>
+
+  <div class="sectionlabel">4 · PA &amp; Pod-wise attempts and connects</div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>Pod-wise attempts &amp; connects</h3>
+      <div class="hint">Top pods by attempts; value = connect rate</div></div></div><div id="podAtt"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>PA-wise attempts &amp; connects</h3>
+      <div class="hint">Top PAs by attempts; value = connect rate</div></div></div><div id="paAtt"></div></div>
+  </div>
+
+  <div class="sectionlabel">Business funnel &amp; impact</div>
   <div class="grid c2">
     <div class="card" id="funnelCard">
       <div class="cardhead"><div><h3>Business funnel</h3><div class="hint">Each stage as a share of all leads; the widest single drop is the primary gap.</div></div></div>
@@ -195,22 +230,11 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     </div>
   </div>
 
-  <div class="sectionlabel">Qualification intelligence — what drives qualified vs disqualified</div>
+  <div class="sectionlabel">More insights</div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>A/B bot variant scorecard</h3>
       <div class="hint">Same leads, two bot versions — which one qualifies more</div></div></div><div id="abTest"></div></div>
-    <div class="card"><div class="cardhead"><div><h3>Conversation depth — where calls drop</h3>
-      <div class="hint">Of connected leads, how far the scripted call gets before it ends</div></div></div><div id="answerDepth"></div></div>
-  </div>
-  <div class="grid c2b">
-    <div class="card">
-      <div class="cardhead"><div><h3>Qualification drivers by segment</h3>
-        <div class="hint">Qual % vs DQ % per segment (≥20 leads), best first</div></div>
-        <div class="seg" id="qdimSeg"></div></div>
-      <div id="qualDrivers"></div>
-    </div>
-    <div class="card"><div class="cardhead"><div><h3>Disqualification — reclaimable vs hard</h3>
-      <div class="hint">How much DQ a PSA/human could still recover</div></div></div><div id="dqRecover"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Booking outcomes</h3><div class="hint">Qualified-lead sub-status mix</div></div></div><div id="outDonut"></div></div>
   </div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Qualified vs disqualified by day of week</h3>
@@ -218,24 +242,13 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="card"><div class="cardhead"><div><h3>Call volume by day of week</h3>
       <div class="hint">Where the calling effort lands across the week</div></div></div><div id="dowVol"></div></div>
   </div>
-
-  <div class="sectionlabel">Trends</div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>Connection buckets</h3><div class="hint">How the call attempt landed</div></div></div><div id="bukBars"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Call attempts to reach</h3><div class="hint">Retry-ladder distribution</div></div></div><div id="attBars"></div></div>
+  </div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Daily leads &amp; connect rate</h3></div></div><div id="trendLeads"></div></div>
     <div class="card"><div class="cardhead"><div><h3>Qualification rate over time</h3><div class="hint">Bot Qualified as % of leads (7-day average)</div></div></div><div id="trendQual"></div></div>
-  </div>
-
-  <div class="sectionlabel">Outcomes &amp; disqualification</div>
-  <div class="grid c3">
-    <div class="card"><div class="cardhead"><div><h3>Disqualification reasons</h3><div class="hint">Which gates fire</div></div></div><div id="dqBars"></div><div id="dqNote"></div></div>
-    <div class="card"><div class="cardhead"><div><h3>Booking outcomes</h3><div class="hint">Qualified-lead sub-status mix</div></div></div><div id="outDonut"></div></div>
-    <div class="card"><div class="cardhead"><div><h3>Connection buckets</h3><div class="hint">How the call attempt landed</div></div></div><div id="bukBars"></div></div>
-  </div>
-
-  <div class="sectionlabel">Connection efficiency</div>
-  <div class="grid c2b">
-    <div class="card"><div class="cardhead"><div><h3>Time to first connect</h3></div></div><div id="ttcBars"></div></div>
-    <div class="card"><div class="cardhead"><div><h3>Call attempts to reach</h3><div class="hint">Retry-ladder distribution</div></div></div><div id="attBars"></div></div>
   </div>
 
   <div class="sectionlabel">CRM pipeline stage</div>
@@ -344,19 +357,42 @@ function sparkline(metricIdx,asRate){
     <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>
     <circle cx="${X0(pts.length-1)}" cy="${Y0(pts[pts.length-1])}" r="3" fill="var(--accent)"/></svg>`;
 }
+function wowRate(numIdx,denIdx){
+  const last=DAYS[ND-1];
+  const c=sumDaily(idxOffRange(last-6,last)), p=sumDaily(idxOffRange(last-13,last-7));
+  const rc=c[denIdx]?c[numIdx]/c[denIdx]:null, rp=p[denIdx]?p[numIdx]/p[denIdx]:null;
+  return (rc!=null&&rp)?((rc-rp)/rp*100):null;
+}
+function sparkRate(numIdx,denIdx){
+  const w=210,h=34,ix=idxRange();
+  const pts=ix.map(i=>DAILY[i][denIdx]?DAILY[i][numIdx]/DAILY[i][denIdx]:0);
+  if(pts.length<2)return'';
+  const mx=Math.max(...pts,1e-9),mn=Math.min(...pts,0);
+  const X0=k=>k/(pts.length-1)*w, Y0=v=>h-2-(v-mn)/(mx-mn||1)*(h-6);
+  let d='M'+pts.map((v,k)=>X0(k).toFixed(1)+','+Y0(v).toFixed(1)).join(' L');
+  return `<svg viewBox="0 0 ${w} ${h}" height="${h}"><path d="${d} L${w},${h} L0,${h} Z" fill="var(--accent-soft)"/>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    <circle cx="${X0(pts.length-1)}" cy="${Y0(pts[pts.length-1])}" r="3" fill="var(--accent)"/></svg>`;
+}
 function renderKPI(){
   const ix=idxRange(),t=sumDaily(ix),L=t[X.leads]||1;
   const el=document.getElementById('kpis');
-  const reached=t[X.conn], q=t[X.qual], booked=t[X.vcS]+t[X.vcA], sale=t[X.sale];
+  const att=t[X.att], conn=t[X.conn], conn0=t[X.conn0], connW=conn-conn0;
+  const q=t[X.qual], booked=t[X.vcS]+t[X.vcA];
   el.innerHTML=[
-    kpiTile('Leads',nf(t[X.leads]),`${fmtD(ix[0]!=null?DAYS[ix[0]]:0)} – ${fmtD(DAYS[ND-1])}`,wow(X.leads).delta,sparkline(X.leads,false)),
-    kpiTile('Reached',pf(reached,L),`${nf(reached)} connected of ${nf(t[X.leads])}`,wow(X.conn).delta,sparkline(X.conn,true)),
-    kpiTile('Answered ≥1',pf(t[X.ans1],L),`${nf(t[X.ans1])} engaged the bot`,wow(X.ans1).delta,sparkline(X.ans1,true)),
-    kpiTile('Answered ≥6',pf(t[X.ans6],L),`${nf(t[X.ans6])} completed the call`,wow(X.ans6).delta,sparkline(X.ans6,true)),
-    kpiTile('Bot qualified',pf(q,L),`${nf(q)} passed the gates`,wow(X.qual).delta,sparkline(X.qual,true)),
-    kpiTile('Bot disqualified',pf(t[X.dq],L),`${nf(t[X.dq])} tripped a gate`,wow(X.dq).delta,sparkline(X.dq,true),true),
+    kpiTile('Total leads',nf(t[X.leads]),`${fmtD(ix[0]!=null?DAYS[ix[0]]:0)} – ${fmtD(DAYS[ND-1])}`,wow(X.leads).delta,sparkline(X.leads,false)),
+    kpiTile('Attempted',nf(att),`${pf(att,L)} of leads`,wow(X.att).delta,sparkline(X.att,true)),
+    kpiTile('Connected',nf(conn),`${pf(conn,L)} of leads`,wow(X.conn).delta,sparkline(X.conn,true)),
+    kpiTile('Connected · 0 answer',nf(conn0),`${pf(conn0,conn)} of connected`,wow(X.conn0).delta,sparkline(X.conn0,true),true),
+    kpiTile('Connected · ≥1 answer',nf(connW),`${pf(connW,conn)} of connected`,wow(X.ans1).delta,sparkline(X.ans1,true)),
+    kpiTile('Overall connectivity',pf(conn,att),`${nf(conn)} of ${nf(att)} attempted`,wowRate(X.conn,X.att),sparkRate(X.conn,X.att)),
+    kpiTile('Bot qualified',nf(q),`${pf(q,L)} of leads`,wow(X.qual).delta,sparkline(X.qual,true)),
+    kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],L)} of leads`,wow(X.dq).delta,sparkline(X.dq,true),true),
     kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified`,wow(X.vcS).delta,sparkline(X.vcS,false)),
-    kpiTile('Sales',nf(sale),`${pf(sale,L)} of leads · ${pf(t[X.qSale],q)} of qualified`,wow(X.sale).delta,sparkline(X.sale,false)),
+    kpiTile('VC done',nf(t[X.vcDone]),`${pf(t[X.vcDone],booked)} of booked`,wow(X.vcDone).delta,sparkline(X.vcDone,false)),
+    kpiTile('DCD',nf(t[X.dcd]),`${pf(t[X.dcd],L)} of leads`,wow(X.dcd).delta,sparkline(X.dcd,false)),
+    kpiTile('RTE',nf(t[X.rte]),`${pf(t[X.rte],L)} of leads`,wow(X.rte).delta,sparkline(X.rte,false)),
+    kpiTile('Sale',nf(t[X.sale]),`${pf(t[X.sale],L)} of leads · ${pf(t[X.qSale],q)} of qual`,wow(X.sale).delta,sparkline(X.sale,false)),
   ].join('');
 }
 
@@ -645,6 +681,28 @@ function renderDQRecover(){
   document.getElementById('dqRecover').innerHTML=co+bars; bindTip('dqRecover','.brow');
 }
 
+/* ---------- Q&A distribution + PA/Pod attempts & connects ---------- */
+function renderAnsDist(){
+  const ix=idxRange(), ans=sumHist('ans',ix);
+  const labels=['0 ans','1','2','3','4','5','6','7','8','9'];
+  const pairs=labels.map((l,i)=>[l,ans[i]]).filter(p=>p[1]>0);
+  barsInto('ansDist',pairs,{color:(i)=>i===0?cssv('--ink-3'):cssv('--seq-3')});
+}
+function renderAttConn(dim,elId){
+  const ix=idxRange();
+  const rows=sumDim(dim,ix).map(r=>({name:r.name,att:r.v[LX.att],conn:r.v[LX.conn]}))
+    .filter(r=>r.att>0).sort((a,b)=>b.att-a.att).slice(0,12);
+  const mx=Math.max(...rows.map(r=>r.att),1), ac=cssv('--s1'), cc=cssv('--s3');
+  document.getElementById(elId).innerHTML='<div class="blist">'+rows.map(r=>
+    `<div class="qrow" data-tip="${r.name}|Attempts ${nf(r.att)}|Connects ${nf(r.conn)}|Connect rate ${pf(r.conn,r.att)}">
+      <span class="bn" title="${r.name}">${r.name||'(blank)'}</span>
+      <div class="qbars"><div class="btrack"><span style="width:${(r.att/mx*100).toFixed(0)}%;background:${ac}"></span></div>
+      <div class="btrack"><span style="width:${(r.conn/mx*100).toFixed(0)}%;background:${cc}"></span></div></div>
+      <span class="bv num">${pf(r.conn,r.att)}</span></div>`).join('')+'</div>'+
+    `<div class="legend"><span><i style="background:${ac}"></i>Attempts</span><span><i style="background:${cc}"></i>Connects</span></div>`;
+  bindTip(elId,'.qrow');
+}
+
 /* ---------- lead explorer (all leads: search + paginate + CSV) ---------- */
 const LEADS=DATA.leads||[], LC={}; (DATA.leadCols||[]).forEach((k,i)=>LC[k]=i);
 let PAGE=0; const PSIZE=25;
@@ -660,19 +718,23 @@ function filteredLeads(){
     (!s||String(r[LC.status]).toLowerCase().includes(s)));
 }
 const esc=s=>{s=s==null?'':String(s);return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));};
+const fmtOff=o=>o==null?'–':fmtD(o);
 function renderLeads(){
   const rows=filteredLeads(), total=rows.length, pages=Math.max(1,Math.ceil(total/PSIZE));
   if(PAGE>=pages)PAGE=pages-1; if(PAGE<0)PAGE=0;
   const slice=rows.slice(PAGE*PSIZE,PAGE*PSIZE+PSIZE);
-  const head=['Lead ID','Date','Pod','PA','Lead status','Bucket','Outcome','Att','Qual','Sale'];
+  const head=['Lead ID','Date','1st attempt','Last attempt','Attempts','Connects','1st connect','Last connect','Max ans','Max-ans TAT','Qual','VC booked','DCD','RTE','Sale'];
+  const yn=v=>v?'✓':'';
   document.getElementById('leadsTable').innerHTML='<thead><tr>'+head.map(h=>`<th>${h}</th>`).join('')+
     '</tr></thead><tbody>'+slice.map(r=>{
-      const oc=r[LC.qual]?cssv('--good'):cssv('--ink-3');
-      return `<tr><td>${esc(r[LC.email])||'–'}</td><td>${fmtD(r[LC.date])}</td>
-        <td>${esc(r[LC.pod])||'–'}</td><td>${esc(r[LC.pa])||'–'}</td><td>${esc(r[LC.status])||'–'}</td>
-        <td>${esc(r[LC.bucket])||'–'}</td>
-        <td><span class="pill" style="background:color-mix(in srgb,${oc} 15%,transparent);color:${oc}">${esc(r[LC.outcome])||'—'}</span></td>
-        <td class="num">${r[LC.att]}</td><td>${r[LC.qual]?'✓':''}</td><td>${r[LC.sale]?'✓':''}</td></tr>`;
+      const qc=r[LC.qual]?cssv('--good'):cssv('--ink-3');
+      return `<tr><td>${esc(r[LC.email])||'–'}</td><td>${fmtOff(r[LC.date])}</td>
+        <td>${fmtOff(r[LC.att1])}</td><td>${fmtOff(r[LC.attN])}</td>
+        <td class="num">${r[LC.att]}</td><td class="num">${r[LC.conn]}</td>
+        <td>${fmtOff(r[LC.con1])}</td><td>${fmtOff(r[LC.conN])}</td>
+        <td class="num">${r[LC.maxans]}</td><td>${esc(r[LC.tat])||'–'}</td>
+        <td style="color:${qc};font-weight:700">${yn(r[LC.qual])}</td>
+        <td>${yn(r[LC.vcb])}</td><td>${yn(r[LC.dcd])}</td><td>${yn(r[LC.rte])}</td><td>${yn(r[LC.sale])}</td></tr>`;
     }).join('')+'</tbody>';
   document.getElementById('leadCount').textContent=`${nf(total)} lead${total===1?'':'s'}${leadFilterActive()?' (filtered)':''}`;
   const pg=document.getElementById('leadsPager');
@@ -684,13 +746,14 @@ function renderLeads(){
 }
 function exportCSV(){
   const rows=filteredLeads();
-  const cols=['email','date','pod','pa','status','bucket','outcome','att','qual','sale'];
-  const head=['lead_email','Date','Pod','PA','Lead status','Bucket','Outcome','Attempts','Qualified','Sale'];
+  const cols=['email','pod','pa','status','date','att1','attN','att','conn','con1','conN','maxans','tat','qual','vcb','dcd','rte','sale'];
+  const head=['lead_email','pod','pa','lead_status','lead_date','first_attempt_date','last_attempt_date','total_attempts','connects','first_connect_date','last_connect_date','max_answers','max_answer_tat','qualified','vc_booked','dcd','rte','sale'];
+  const DATEC=['date','att1','attN','con1','conN'], FLAGC=['qual','vcb','dcd','rte','sale'];
   const cq=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   const lines=[head.join(',')];
   rows.forEach(r=>lines.push(cols.map(c=>{
-    if(c==='date')return isoOff(r[LC.date]);
-    if(c==='qual'||c==='sale')return r[LC[c]]?'1':'0';
+    if(DATEC.includes(c))return r[LC[c]]==null?'':isoOff(r[LC[c]]);
+    if(FLAGC.includes(c))return r[LC[c]]?'1':'0';
     return cq(r[LC[c]]);
   }).join(',')));
   const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
@@ -717,7 +780,8 @@ function renderAll(){
   const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
   document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
   renderKPI();renderFunnel();renderImpact();
-  renderABTest();renderAnswerDepth();renderQdimSeg();renderQualDrivers();renderDQRecover();renderDOW();renderDOWVol();
+  renderABTest();renderAnswerDepth();renderAnsDist();renderQdimSeg();renderQualDrivers();renderDQRecover();renderDOW();renderDOWVol();
+  renderAttConn('owner','podAtt');renderAttConn('pa','paAtt');
   renderTrends();renderMixes();renderDonut();renderSG();renderDimSeg();renderSeg();
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});

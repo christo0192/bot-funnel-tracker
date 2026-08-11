@@ -90,6 +90,7 @@ LM = len(LXCOLS)
 # dimension name -> lead column
 DIMS_SRC = {
     "owner": "pod",
+    "pa": "pa_name",
     "city": "city",
     "variant": "ab_test_variant",
     "source": "channel",
@@ -108,7 +109,9 @@ SELECT_COLS = [
     "pa_call_offered","pa_call_accepted","flag_pa_ever_called","flag_pa_ever_connected",
     "dcd_flag","vc_done_flag","sale_flag","wa_flag","rte_flag","complaint_raised",
     "flag_bot_qual_pa_no_call","flag_bot_qual_dcd_done","flag_bot_qual_pa_connected",
-    "lead_email","work_ex","utm_source","pa_name","bot_first_attempt_date",
+    "lead_email","work_ex","utm_source","pa_name",
+    "bot_first_attempt_date","bot_last_contacted_date","total_connected_calls",
+    "bot_first_connect_date","bot_last_connected_date",
 ]
 
 DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]  # weekday of the bot's first call
@@ -221,18 +224,26 @@ def main():
 
     # Full lead-level table (ALL leads), columnar to keep the payload small.
     # Powers the searchable + paginated + CSV-exportable lead explorer.
-    LEAD_COLS = ["email", "date", "pod", "pa", "status", "bucket", "outcome", "att", "qual", "sale"]
+    # First four fields drive the search filters; the rest are the funnel columns
+    # the manager specified. All dates are day-offsets from epoch (null -> None).
+    doff = lambda d: (d - epoch).days if d else None
+    VC_BOOKED = {"Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled"}
+    LEAD_COLS = ["email", "pod", "pa", "status",
+                 "date", "att1", "attN", "att", "conn", "con1", "conN",
+                 "maxans", "tat", "qual", "vcb", "dcd", "rte", "sale"]
     leads_out = []
     for r in rows:
-        outcome = r["phase2_outcome"] or ("Bot Qualified" if b(r["bot_qualified"])
-                   else (r["disqualification_reason"] or ""))
         leads_out.append([
-            r["lead_email"] or "", day_off[r["lead_date"]], r["pod"] or "", r["pa_name"] or "",
-            r["lead_status"] or "", r["bot_bucket"] or "", outcome,
-            r["total_call_attempts"] or 0, b(r["bot_qualified"]), b(r["sale_flag"]),
+            r["lead_email"] or "", r["pod"] or "", r["pa_name"] or "", r["lead_status"] or "",
+            day_off[r["lead_date"]], doff(r["bot_first_attempt_date"]), doff(r["bot_last_contacted_date"]),
+            r["total_call_attempts"] or 0, r["total_connected_calls"] or 0,
+            doff(r["bot_first_connect_date"]), doff(r["bot_last_connected_date"]),
+            r["best_questions_answered"] or 0, r["time_to_connect_bucket"] or "",
+            b(r["bot_qualified"]), 1 if r["phase2_outcome"] in VC_BOOKED else 0,
+            b(r["dcd_flag"]), b(r["rte_flag"]), b(r["sale_flag"]),
         ])
-    # newest first so the default view reads like "recent calls"
-    leads_out.sort(key=lambda x: x[1], reverse=True)
+    # newest first (by lead_date) so the default view reads like recent activity
+    leads_out.sort(key=lambda x: x[4], reverse=True)
 
     out = {
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
