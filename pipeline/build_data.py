@@ -230,16 +230,17 @@ def main():
     VC_BOOKED = {"Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled"}
     LEAD_COLS = ["email", "pod", "pa", "status",
                  "date", "att1", "attN", "att", "conn", "con1", "conN",
-                 "maxans", "tat", "qual", "vcb", "dcd", "rte", "sale"]
+                 "maxans", "tat", "qual", "dq", "vcb", "dcd", "rte", "sale"]
     leads_out = []
     for r in rows:
+        dq = 1 if r["disqualification_reason"] not in (None, "", "None") else 0
         leads_out.append([
             r["lead_email"] or "", r["pod"] or "", r["pa_name"] or "", r["lead_status"] or "",
             day_off[r["lead_date"]], doff(r["bot_first_attempt_date"]), doff(r["bot_last_contacted_date"]),
             r["total_call_attempts"] or 0, r["total_connected_calls"] or 0,
             doff(r["bot_first_connect_date"]), doff(r["bot_last_connected_date"]),
             r["best_questions_answered"] or 0, r["time_to_connect_bucket"] or "",
-            b(r["bot_qualified"]), 1 if r["phase2_outcome"] in VC_BOOKED else 0,
+            b(r["bot_qualified"]), dq, 1 if r["phase2_outcome"] in VC_BOOKED else 0,
             b(r["dcd_flag"]), b(r["rte_flag"]), b(r["sale_flag"]),
         ])
     # newest first (by lead_date) so the default view reads like recent activity

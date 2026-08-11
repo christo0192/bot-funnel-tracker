@@ -2,6 +2,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 :root{
+  color-scheme:light;
   --bg:#f4f4f2; --surf:#fcfcfb; --surf-2:#efefec; --line:#e0e0da; --line-2:#d2d2ca;
   --ink:#0b0b0b; --ink-2:#52514e; --ink-3:#86867e;
   --accent:#2a78d6; --accent-soft:#e7f0fc;
@@ -15,6 +16,7 @@
   --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
   --bg:#121211; --surf:#1a1a19; --surf-2:#222220; --line:#33332f; --line-2:#3f3f3a;
   --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#8f8f86;
   --accent:#3987e5; --accent-soft:#16233a;
@@ -24,6 +26,7 @@
   --shadow:0 1px 2px rgba(0,0,0,.4),0 2px 10px rgba(0,0,0,.3);
 }}
 :root[data-theme="dark"]{
+  color-scheme:dark;
   --bg:#121211; --surf:#1a1a19; --surf-2:#222220; --line:#33332f; --line-2:#3f3f3a;
   --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#8f8f86;
   --accent:#3987e5; --accent-soft:#16233a;
@@ -117,7 +120,7 @@ a{color:var(--accent)}
 .brow .bv{text-align:right;color:var(--ink);font-weight:600}
 /* table */
 table{width:100%;border-collapse:collapse;font-size:12.5px}
-th,td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line)}
+th,td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line);color:var(--ink)}
 th:first-child,td:first-child{text-align:left}
 thead th{color:var(--ink-3);font-size:11px;text-transform:uppercase;letter-spacing:.03em;font-weight:640;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--surf)}
 thead th.on{color:var(--accent)}
@@ -139,7 +142,9 @@ svg{display:block;width:100%;overflow:visible}
 .explorer{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .qin{border:1px solid var(--line);background:var(--surf-2);color:var(--ink);font:inherit;font-size:12.5px;
   padding:6px 10px;border-radius:8px;min-width:150px;flex:1 1 150px;max-width:230px}
-.qin:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.qin:focus,.qsel:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.qsel{border:1px solid var(--line);background:var(--surf-2);color:var(--ink);font:inherit;font-size:12px;
+  padding:6px 8px;border-radius:8px;max-width:190px;cursor:pointer}
 .spacerflex{flex:1 1 auto}
 .btn{border:1px solid var(--accent);background:var(--accent);color:#fff;font:inherit;font-size:12.5px;font-weight:600;
   padding:7px 13px;border-radius:8px;cursor:pointer;white-space:nowrap}
@@ -271,15 +276,21 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
   <div class="card">
     <div class="explorer">
       <input id="qEmail" class="qin" placeholder="Lead ID / email…">
-      <input id="qPa" class="qin" placeholder="PA contains…">
-      <input id="qPod" class="qin" placeholder="Pod contains…">
-      <input id="qStatus" class="qin" placeholder="Lead status contains…">
+      <select id="qPod" class="qsel"><option value="">Pod: any</option></select>
+      <select id="qPa" class="qsel"><option value="">PA: any</option></select>
+      <select id="qStatus" class="qsel"><option value="">Lead status: any</option></select>
+      <select id="qQual" class="qsel"><option value="">Qualification: any</option><option value="qual">Bot qualified</option><option value="dq">Bot disqualified</option><option value="neither">Neither (no verdict)</option></select>
+      <select id="qTat" class="qsel"><option value="">Max-ans TAT: any</option></select>
+      <select id="qVcb" class="qsel"><option value="">VC booked: any</option><option value="1">Yes</option><option value="0">No</option></select>
+      <select id="qSale" class="qsel"><option value="">Sale: any</option><option value="1">Yes</option><option value="0">No</option></select>
+      <select id="qDcd" class="qsel"><option value="">DCD: any</option><option value="1">Yes</option><option value="0">No</option></select>
+      <select id="qRte" class="qsel"><option value="">RTE: any</option><option value="1">Yes</option><option value="0">No</option></select>
       <button id="qReset" class="iconbtn" title="Clear all filters">✕</button>
       <span class="spacerflex"></span>
       <span id="leadCount" class="hint"></span>
       <button id="exportCsv" class="btn">⭳ Export CSV</button>
     </div>
-    <div class="hint" style="margin:2px 0 10px">Filters combine with AND. Export downloads all leads when no filter is set, or just the filtered rows when one is.</div>
+    <div class="hint" style="margin:2px 0 10px">All filters combine with AND. Export downloads all leads when no filter is set, or just the filtered rows when one is.</div>
     <div class="scroll"><table id="leadsTable"></table></div>
     <div class="pager" id="leadsPager"></div>
   </div>
@@ -706,16 +717,31 @@ function renderAttConn(dim,elId){
 /* ---------- lead explorer (all leads: search + paginate + CSV) ---------- */
 const LEADS=DATA.leads||[], LC={}; (DATA.leadCols||[]).forEach((k,i)=>LC[k]=i);
 let PAGE=0; const PSIZE=25;
-const qval=id=>(document.getElementById(id).value||'').trim().toLowerCase();
-function leadFilterActive(){return qval('qEmail')||qval('qPa')||qval('qPod')||qval('qStatus');}
+const FILTER_IDS=['qEmail','qPod','qPa','qStatus','qQual','qTat','qVcb','qSale','qDcd','qRte'];
+const qval=id=>(document.getElementById(id).value||'').trim().toLowerCase();  // email substring
+const gval=id=>document.getElementById(id).value||'';                         // exact select value
+function leadFilterActive(){return FILTER_IDS.some(id=>document.getElementById(id).value);}
+function populateFilters(){
+  const uniq=idx=>[...new Set(LEADS.map(r=>r[idx]).filter(v=>v!==''&&v!=null))].sort((a,b)=>(''+a).localeCompare(''+b));
+  const fill=(id,vals)=>{const s=document.getElementById(id);vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o);});};
+  fill('qPod',uniq(LC.pod)); fill('qPa',uniq(LC.pa)); fill('qStatus',uniq(LC.status));
+  fill('qTat',M.ttc.filter(t=>LEADS.some(r=>r[LC.tat]===t)));
+}
 function filteredLeads(){
-  const e=qval('qEmail'),p=qval('qPa'),d=qval('qPod'),s=qval('qStatus');
-  if(!(e||p||d||s)) return LEADS;
+  const e=qval('qEmail'),pod=gval('qPod'),pa=gval('qPa'),st=gval('qStatus'),
+        ql=gval('qQual'),tat=gval('qTat'),vcb=gval('qVcb'),sale=gval('qSale'),dcd=gval('qDcd'),rte=gval('qRte');
+  if(!leadFilterActive()) return LEADS;
   return LEADS.filter(r=>
-    (!e||String(r[LC.email]).toLowerCase().includes(e)) &&
-    (!p||String(r[LC.pa]).toLowerCase().includes(p)) &&
-    (!d||String(r[LC.pod]).toLowerCase().includes(d)) &&
-    (!s||String(r[LC.status]).toLowerCase().includes(s)));
+    (!e   || String(r[LC.email]).toLowerCase().includes(e)) &&
+    (!pod || r[LC.pod]===pod) &&
+    (!pa  || r[LC.pa]===pa) &&
+    (!st  || r[LC.status]===st) &&
+    (!ql  || (ql==='qual'? r[LC.qual]===1 : ql==='dq'? r[LC.dq]===1 : (r[LC.qual]!==1 && r[LC.dq]!==1))) &&
+    (!tat || r[LC.tat]===tat) &&
+    (vcb===''  || String(r[LC.vcb])===vcb) &&
+    (sale==='' || String(r[LC.sale])===sale) &&
+    (dcd===''  || String(r[LC.dcd])===dcd) &&
+    (rte===''  || String(r[LC.rte])===rte));
 }
 const esc=s=>{s=s==null?'':String(s);return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));};
 const fmtOff=o=>o==null?'–':fmtD(o);
@@ -746,9 +772,9 @@ function renderLeads(){
 }
 function exportCSV(){
   const rows=filteredLeads();
-  const cols=['email','pod','pa','status','date','att1','attN','att','conn','con1','conN','maxans','tat','qual','vcb','dcd','rte','sale'];
-  const head=['lead_email','pod','pa','lead_status','lead_date','first_attempt_date','last_attempt_date','total_attempts','connects','first_connect_date','last_connect_date','max_answers','max_answer_tat','qualified','vc_booked','dcd','rte','sale'];
-  const DATEC=['date','att1','attN','con1','conN'], FLAGC=['qual','vcb','dcd','rte','sale'];
+  const cols=['email','pod','pa','status','date','att1','attN','att','conn','con1','conN','maxans','tat','qual','dq','vcb','dcd','rte','sale'];
+  const head=['lead_email','pod','pa','lead_status','lead_date','first_attempt_date','last_attempt_date','total_attempts','connects','first_connect_date','last_connect_date','max_answers','max_answer_tat','qualified','disqualified','vc_booked','dcd','rte','sale'];
+  const DATEC=['date','att1','attN','con1','conN'], FLAGC=['qual','dq','vcb','dcd','rte','sale'];
   const cq=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   const lines=[head.join(',')];
   rows.forEach(r=>lines.push(cols.map(c=>{
@@ -761,8 +787,9 @@ function exportCSV(){
   a.download=`ik-bot-leads-${leadFilterActive()?'filtered':'all'}-${isoOff(DAYS[ND-1])}.csv`;
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
 }
-['qEmail','qPa','qPod','qStatus'].forEach(id=>document.getElementById(id).oninput=()=>{PAGE=0;renderLeads();});
-document.getElementById('qReset').onclick=()=>{['qEmail','qPa','qPod','qStatus'].forEach(id=>document.getElementById(id).value='');PAGE=0;renderLeads();};
+populateFilters();
+FILTER_IDS.forEach(id=>{const el=document.getElementById(id);const h=()=>{PAGE=0;renderLeads();};el.oninput=h;el.onchange=h;});
+document.getElementById('qReset').onclick=()=>{FILTER_IDS.forEach(id=>document.getElementById(id).value='');PAGE=0;renderLeads();};
 document.getElementById('exportCsv').onclick=exportCSV;
 
 /* ---------- lead-status stage groups ---------- */
