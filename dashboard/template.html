@@ -242,23 +242,11 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
   <div class="sectionlabel">Funnel by Pod &amp; PA</div>
   <div class="card">
     <div class="cardhead"><div><h3>Funnel stages by segment</h3>
-      <div class="hint">Row-wise counts across every funnel stage. Click a header to sort; bar = lead volume.</div></div>
+      <div class="hint">Row-wise counts across every funnel stage · click a header to sort · the grey number after Attempted = avg dials/attempted lead, after Connected = avg connects/connected lead</div></div>
       <div class="seg" id="fdimSeg"></div></div>
     <div class="scroll"><table id="funnelTable"></table></div>
   </div>
-  <div class="sectionlabel">Business impact</div>
-  <div class="card">
-    <div class="cardhead"><div><h3>Bot → business impact</h3><div class="hint">Does bot-qualification convert downstream?</div></div></div>
-    <div id="impact"></div>
-  </div>
-
-  <div class="sectionlabel">More insights</div>
-  <div class="grid c2b">
-    <div class="card"><div class="cardhead"><div><h3>Connection buckets</h3><div class="hint">How the call attempt landed</div></div></div><div id="bukBars"></div></div>
-    <div class="card"><div class="cardhead"><div><h3>Call attempts to reach</h3><div class="hint">Retry-ladder distribution</div></div></div><div id="attBars"></div></div>
-  </div>
-  <div class="card"><div class="cardhead"><div><h3>Call volume by day of week</h3>
-    <div class="hint">Where the calling effort lands across the week</div></div></div><div id="dowVol"></div></div>
+  <div class="sectionlabel">Trends</div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Daily leads &amp; connect rate</h3></div></div><div id="trendLeads"></div></div>
     <div class="card"><div class="cardhead"><div><h3>Qualification rate over time</h3><div class="hint">Bot Qualified as % of leads (7-day average)</div></div></div><div id="trendQual"></div></div>
@@ -267,18 +255,8 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
   <div class="sectionlabel">CRM pipeline stage</div>
   <div class="card">
     <div class="cardhead"><div><h3>Lead status distribution</h3>
-      <div class="hint">Actual CRM lead_status for the leads in range — one stacked bar, 100% = leads</div></div></div>
-    <div id="crmBar"></div>
-    <div id="crmLegend"></div>
-  </div>
-
-  <div class="sectionlabel">Segment performance</div>
-  <div class="card">
-    <div class="cardhead">
-      <div><h3>Breakdown</h3><div class="hint">Sorted; bar = qualification rate. Click a header to sort.</div></div>
-      <div class="seg" id="dimSeg"></div>
-    </div>
-    <div class="scroll"><table id="segTable"></table></div>
+      <div class="hint">Actual CRM lead_status for the leads in range · click a header to sort</div></div></div>
+    <div class="scroll"><table id="crmTable"></table></div>
   </div>
 
   <div class="sectionlabel">Lead explorer — search all leads</div>
@@ -555,9 +533,7 @@ function renderMixes(){
   const status=[cssv('--crit'),cssv('--serious'),cssv('--warn'),cssv('--s4'),cssv('--s7'),cssv('--s5'),cssv('--s8'),cssv('--ink-3')];
   barsInto('dqBars',dqp,{color:(i)=>status[i%status.length],pct:true,
     head:`<div class="cardnum">${nf(dqTot)} <span>bot disqualified · ${pf(dqTot,L)} of leads</span></div>`});
-  const buk=sumHist('buk',ix);barsInto('bukBars',M.buckets.map((l,i)=>[l,buk[i]]),{color:(i)=>[cssv('--ink-3'),cssv('--s2'),cssv('--s8'),cssv('--s4'),cssv('--s3')][i]});
   const ttc=sumHist('ttc',ix);barsInto('ttcBars',M.ttc.map((l,i)=>[l,ttc[i]]).filter(p=>p[1]>0),{color:()=>cssv('--seq-3')});
-  const at=sumHist('att',ix);barsInto('attBars',M.att.map((l,i)=>[l,at[i]]),{color:()=>cssv('--seq-3')});
 }
 
 /* ---------- donut ---------- */
@@ -835,10 +811,10 @@ function renderFdimSeg(){
 function renderFunnelTable(){
   const ix=idxRange();
   const rows=sumDim(FDIM,ix).map(r=>{const v=r.v;return{
-    name:r.name||'(blank)',leads:v[LX.leads],att:v[LX.att],conn:v[LX.conn],
+    name:r.name||'(blank)',leads:v[LX.leads],att:v[LX.att],conn:v[LX.conn],aS:v[LX.attSum],cS:v[LX.connSum],
     ans0:v[LX.conn0],ans1:Math.max(0,v[LX.conn]-v[LX.conn0]),qual:v[LX.qual],dq:v[LX.dq],
     vcb:v[LX.vcB],vcd:v[LX.vcDone],dcd:v[LX.dcd],rte:v[LX.rte],sale:v[LX.sale]};}).filter(r=>r.leads>0);
-  const cols=[['name','Segment'],['leads','Leads'],['att','Attempted'],['conn','Connected'],['ans0','Ans 0'],
+  const cols=[['name','Segment'],['leads','Leads'],['att','Attempted · avg'],['conn','Connected · avg'],['ans0','Ans 0'],
     ['ans1','Ans ≥1'],['qual','Bot Q'],['dq','Bot DQ'],['vcb','VC booked'],['vcd','VC done'],['dcd','DCD'],['rte','RTE'],['sale','Sale']];
   rows.sort((a,b)=>{const k=FSORT.k;if(k==='name')return FSORT.dir*(''+a.name).localeCompare(''+b.name);return FSORT.dir*((a[k]||0)-(b[k]||0));});
   const mxL=Math.max(...rows.map(r=>r.leads),1);
@@ -846,7 +822,9 @@ function renderFunnelTable(){
   const body=rows.slice(0,20).map(r=>`<tr>
     <td>${esc(r.name)}</td>
     <td class="num">${nf(r.leads)}<span class="mini" style="width:${(r.leads/mxL*28).toFixed(0)}px"></span></td>
-    <td class="num">${nf(r.att)}</td><td class="num">${nf(r.conn)}</td><td class="num">${nf(r.ans0)}</td>
+    <td class="num">${nf(r.att)} <span class="pctv">${r.att?(r.aS/r.att).toFixed(1):'0'}</span></td>
+    <td class="num">${nf(r.conn)} <span class="pctv">${r.conn?(r.cS/r.conn).toFixed(1):'0'}</span></td>
+    <td class="num">${nf(r.ans0)}</td>
     <td class="num">${nf(r.ans1)}</td><td class="num">${nf(r.qual)}</td><td class="num">${nf(r.dq)}</td>
     <td class="num">${nf(r.vcb)}</td><td class="num">${nf(r.vcd)}</td><td class="num">${nf(r.dcd)}</td>
     <td class="num">${nf(r.rte)}</td><td class="num">${nf(r.sale)}</td></tr>`).join('');
@@ -856,22 +834,27 @@ function renderFunnelTable(){
     if(FSORT.k===k)FSORT.dir*=-1;else{FSORT.k=k;FSORT.dir=k==='name'?1:-1;}renderFunnelTable();});
 }
 
-/* ---------- CRM: actual lead_status distribution (stacked bar) ---------- */
+/* ---------- CRM: actual lead_status distribution (table) ---------- */
+let CRMSORT={k:'n',dir:-1};
 function renderCRM(){
   const ix=idxRange(), inRange=new Set(ix.map(i=>DAYS[i]));
   const norm=s=>{s=(s||'(blank)').trim();return s==='Discovery_Call_Done'?'Discovery call done':s;};
   const counts={};
   LEADS.forEach(r=>{ if(inRange.has(r[LC.date])){const s=norm(r[LC.status]); counts[s]=(counts[s]||0)+1;} });
-  const pairs=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  const tot=pairs.reduce((s,p)=>s+p[1],0)||1;
-  const pal=['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8','--good','--warn','--serious','--seq-2','--seq-4','--plum','--navy','--sky'].map(cssv).filter(Boolean);
-  const colr=i=>pal[i%pal.length];
-  document.getElementById('crmBar').innerHTML='<div class="sbar" style="height:26px">'+pairs.map((p,i)=>
-    `<span class="sseg" style="width:${(p[1]/tot*100).toFixed(2)}%;background:${colr(i)}" data-h="${esc(p[0])}||${nf(p[1])} · ${pf(p[1],tot)}"></span>`).join('')+'</div>';
-  document.getElementById('crmLegend').innerHTML='<div class="crmleg">'+pairs.map((p,i)=>
-    `<span class="crmitem"><i style="background:${colr(i)}"></i>${esc(p[0])} <b class="num">${nf(p[1])}</b> <span class="pctv">${pf(p[1],tot,0)}</span></span>`).join('')+'</div>';
-  document.getElementById('crmBar').querySelectorAll('span[data-h]').forEach(n=>{const[a,b]=n.dataset.h.split('||');
-    n.onmousemove=e=>tipShow(`<b>${a}</b><br>${b}`,e);n.onmouseleave=tipHide;});
+  let rows=Object.entries(counts).map(([name,n])=>({name,n}));
+  const tot=rows.reduce((s,r)=>s+r.n,0)||1;
+  rows.sort((a,b)=>CRMSORT.k==='name'?CRMSORT.dir*a.name.localeCompare(b.name):CRMSORT.dir*(a.n-b.n));
+  const mx=Math.max(...rows.map(r=>r.n),1);
+  const cols=[['name','Lead status'],['n','Leads'],['pct','% of leads']];
+  const th=cols.map(c=>`<th data-k="${c[0]}" class="${CRMSORT.k===c[0]?'on':''}">${c[1]}${CRMSORT.k===c[0]?(CRMSORT.dir<0?' ▾':' ▴'):''}</th>`).join('');
+  const body=rows.map(r=>`<tr>
+    <td>${esc(r.name)}</td>
+    <td class="num">${nf(r.n)}<span class="mini" style="width:${(r.n/mx*40).toFixed(0)}px"></span></td>
+    <td class="num">${pf(r.n,tot)}</td></tr>`).join('');
+  const el=document.getElementById('crmTable');
+  el.innerHTML=`<thead><tr>${th}</tr></thead><tbody>${body}</tbody><tfoot><tr><td>Total</td><td class="num">${nf(tot)}</td><td class="num">100%</td></tr></tfoot>`;
+  el.querySelectorAll('th').forEach(h=>h.onclick=()=>{const k=h.dataset.k==='pct'?'n':h.dataset.k;
+    if(CRMSORT.k===k)CRMSORT.dir*=-1;else{CRMSORT.k=k;CRMSORT.dir=k==='name'?1:-1;}renderCRM();});
 }
 
 /* ---------- orchestration ---------- */
@@ -879,10 +862,10 @@ function renderAll(){
   const ix=idxRange();
   const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
   document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
-  renderKPI();renderFdimSeg();renderFunnelTable();renderImpact();
-  renderQualOutcome();renderAnswerDepth();renderQdimSeg();renderQualDrivers();renderDOWVol();
+  renderKPI();renderFdimSeg();renderFunnelTable();
+  renderQualOutcome();renderAnswerDepth();renderQdimSeg();renderQualDrivers();
   renderAttConn('owner','podAtt');renderAttConn('pa','paAtt');
-  renderTrends();renderMixes();renderCRM();renderDimSeg();renderSeg();
+  renderTrends();renderMixes();renderCRM();
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('foot').innerHTML=`Source: <span class="num">ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</span> · ${nf(M.rows)} leads · rebuilt daily from BigQuery · generated ${DATA.generated_at}`;
