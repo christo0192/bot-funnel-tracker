@@ -171,6 +171,10 @@ svg{display:block;width:100%;overflow:visible}
 .cmp th{text-transform:none;letter-spacing:0;font-size:11.5px}
 .cmp td.win{color:var(--good);font-weight:700}
 .qrow{display:grid;grid-template-columns:120px 1fr 52px;align-items:center;gap:10px;font-size:12.5px;padding:2px 0}
+.qrow.qrow3{grid-template-columns:130px 1fr 96px}
+.brow .bn .pctv{font-size:11px}
+.arow.ahead{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.03em;padding-bottom:2px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.arow.ahead .bn,.arow.ahead .av{color:var(--ink-3)}
 .qrow .bn{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qbars{display:flex;flex-direction:column;gap:3px}
 .qbars .btrack{height:8px;background:var(--surf-2)}
@@ -512,10 +516,11 @@ function barsInto(elId,pairs,opt){
   const mx=Math.max(...pairs.map(p=>p[1]),1e-9);
   const el=document.getElementById(elId);
   const val=p=>opt.pct?`${nf(p[1])} <span class="pctv">(${pf(p[1],tot,0)})</span>`:nf(p[1]);
+  const lbl=p=>opt.pctLeft?`${p[0]} <span class="pctv">(${pf(p[1],tot,0)})</span>`:p[0];
   el.innerHTML=(opt.head||'')+'<div class="blist">'+pairs.map((p,i)=>{
     const col=opt.color?opt.color(i,p):cssv('--s1');
     return `<div class="brow" data-tip="${p[0]}|${nf(p[1])}|${pf(p[1],tot)} of shown">
-      <span class="bn" title="${p[0]}">${p[0]}</span>
+      <span class="bn" title="${p[0]}">${lbl(p)}</span>
       <div class="btrack"><span style="width:${(p[1]/mx*100).toFixed(1)}%;background:${col}"></span></div>
       <span class="bv num">${val(p)}</span></div>`;}).join('')+'</div>';
   bindTip(elId,'.brow');
@@ -533,7 +538,7 @@ function renderMixes(){
   const status=[cssv('--crit'),cssv('--serious'),cssv('--warn'),cssv('--s4'),cssv('--s7'),cssv('--s5'),cssv('--s8'),cssv('--ink-3')];
   barsInto('dqBars',dqp,{color:(i)=>status[i%status.length],pct:true,
     head:`<div class="cardnum">${nf(dqTot)} <span>bot disqualified · ${pf(dqTot,L)} of leads</span></div>`});
-  const ttc=sumHist('ttc',ix);barsInto('ttcBars',M.ttc.map((l,i)=>[l,ttc[i]]).filter(p=>p[1]>0),{color:()=>cssv('--seq-3')});
+  const ttc=sumHist('ttc',ix);barsInto('ttcBars',M.ttc.map((l,i)=>[l,ttc[i]]).filter(p=>p[1]>0),{color:()=>cssv('--seq-3'),pctLeft:true});
 }
 
 /* ---------- donut ---------- */
@@ -611,8 +616,8 @@ function renderAnswerDepth(){
   let html='<div class="blist">'+stages.map((s,i)=>{
     const leak=i===li, step=i?pf(s[1],stages[i-1][1]):'—', hl=s[0].startsWith('Answered');
     return `<div class="brow" data-tip="${s[0]}|${nf(s[1])}|${pf(s[1],conn)} of connected|step ${step}">
-      <span class="bn" style="${hl?'color:var(--ink);font-weight:600':''}">${s[0]}</span><div class="btrack"><span style="width:${Math.max(s[1]/conn*100,0.6)}%;background:${barCol(s,leak)}"></span></div>
-      <span class="bv num">${pf(s[1],conn)}</span></div>`;}).join('')+'</div>';
+      <span class="bn" style="${hl?'color:var(--ink);font-weight:600':''}">${s[0]} <span class="pctv">(${pf(s[1],conn,0)})</span></span><div class="btrack"><span style="width:${Math.max(s[1]/conn*100,0.6)}%;background:${barCol(s,leak)}"></span></div>
+      <span class="bv num">${nf(s[1])}</span></div>`;}).join('')+'</div>';
   html+=`<div class="hint" style="margin-top:10px">Steepest drop: <b>${stages[li-1][0]} → ${stages[li][0]}</b>,
     losing <b>${nf(ld)}</b> leads (${pf(ld,conn)} of connected) — the highest-leverage point to fix the script.</div>`;
   document.getElementById('answerDepth').innerHTML=html; bindTip('answerDepth','.brow');
@@ -629,13 +634,13 @@ function renderQualDrivers(){
   const gc=cssv('--good'), rc=cssv('--crit'), nc=cssv('--surf-2');
   document.getElementById('qualDrivers').innerHTML='<div class="blist">'+rows.map(r=>{
     const L=r.leads||1, qp=r.qn/L*100, dp=r.dn/L*100, np=Math.max(0,100-qp-dp);
-    return `<div class="qrow" data-tip="${r.name}|${nf(r.leads)} leads|Qualified ${qp.toFixed(1)}% (${nf(r.qn)})|Disqualified ${dp.toFixed(1)}% (${nf(r.dn)})|Neither ${np.toFixed(1)}%">
-      <span class="bn" title="${r.name}">${r.name} <span class="pctv">· ${nf(r.leads)}</span></span>
+    return `<div class="qrow qrow3" data-tip="${r.name}|${nf(r.leads)} leads|Qualified ${qp.toFixed(1)}% (${nf(r.qn)})|Disqualified ${dp.toFixed(1)}% (${nf(r.dn)})|Neither ${np.toFixed(1)}%">
+      <span class="bn" title="${r.name}">${r.name}</span>
       <div class="sbar">
         <span class="sseg" style="width:${qp.toFixed(2)}%;background:${gc}"></span>
         <span class="sseg" style="width:${dp.toFixed(2)}%;background:${rc}"></span>
         <span class="sseg" style="width:${np.toFixed(2)}%;background:${nc}"></span></div>
-      <span class="bv num">${qp.toFixed(1)}%</span></div>`;}).join('')+'</div>'+
+      <span class="bv num">${nf(r.leads)} <span class="pctv">(${qp.toFixed(1)}%)</span></span></div>`;}).join('')+'</div>'+
     `<div class="legend"><span><i style="background:${gc}"></i>Qualified %</span><span><i style="background:${rc}"></i>Disqualified %</span><span><i style="background:${nc}"></i>Neither</span></div>`;
   bindTip('qualDrivers','.qrow');
 }
@@ -686,7 +691,8 @@ function renderAttConn(dim,elId){
       attSum:r.v[LX.attSum],connSum:r.v[LX.connSum]}))
     .filter(r=>r.leads>=20).sort((a,b)=>b.leads-a.leads).slice(0,12);
   const cc=cssv('--good'), ac=cssv('--warn'), nc=cssv('--surf-2');
-  document.getElementById(elId).innerHTML='<div class="blist">'+rows.map(r=>{
+  const header=`<div class="arow ahead"><span class="bn">Segment · leads</span><span>Connect coverage of leads</span><span class="av">dials · conn</span></div>`;
+  document.getElementById(elId).innerHTML='<div class="blist">'+header+rows.map(r=>{
     const L=r.leads||1, connP=r.conn/L*100, attNC=Math.max(0,r.att-r.conn)/L*100, notAtt=Math.max(0,L-r.att)/L*100;
     const avgA=r.att?r.attSum/r.att:0, avgC=r.att?r.connSum/r.att:0;
     return `<div class="arow" data-tip="${r.name}|${nf(r.leads)} leads|Attempted ${nf(r.att)} (${pf(r.att,L)})|Connected ${nf(r.conn)} (${pf(r.conn,L)})|Avg dials / attempted lead ${avgA.toFixed(2)}|Avg connects / attempted lead ${avgC.toFixed(2)}">
@@ -737,7 +743,7 @@ function renderLeads(){
   const rows=filteredLeads(), total=rows.length, pages=Math.max(1,Math.ceil(total/PSIZE));
   if(PAGE>=pages)PAGE=pages-1; if(PAGE<0)PAGE=0;
   const slice=rows.slice(PAGE*PSIZE,PAGE*PSIZE+PSIZE);
-  const head=['Lead ID','Date','1st attempt','Last attempt','Attempts','Connects','1st connect','Last connect','Bucket','Max ans','Max-ans TAT','Qual','VC booked','DCD','RTE','Sale'];
+  const head=['Lead ID','Date','1st attempt','Last attempt','Attempts','Connects','1st connect','Last connect','Bucket','Lead status','Max-ans TAT','Qual','VC booked','DCD','RTE','Sale'];
   const yn=v=>v?'✓':'';
   document.getElementById('leadsTable').innerHTML='<thead><tr>'+head.map(h=>`<th>${h}</th>`).join('')+
     '</tr></thead><tbody>'+slice.map(r=>{
@@ -747,7 +753,7 @@ function renderLeads(){
         <td class="num">${r[LC.att]}</td><td class="num">${r[LC.conn]}</td>
         <td>${fmtOff(r[LC.con1])}</td><td>${fmtOff(r[LC.conN])}</td>
         <td>${esc(r[LC.bucket])||'–'}</td>
-        <td class="num">${r[LC.maxans]}</td><td>${esc(r[LC.tat])||'–'}</td>
+        <td>${esc(r[LC.status])||'–'}</td><td>${esc(r[LC.tat])||'–'}</td>
         <td style="color:${qc};font-weight:700">${yn(r[LC.qual])}</td>
         <td>${yn(r[LC.vcb])}</td><td>${yn(r[LC.dcd])}</td><td>${yn(r[LC.rte])}</td><td>${yn(r[LC.sale])}</td></tr>`;
     }).join('')+'</tbody>';
@@ -810,12 +816,19 @@ function renderFdimSeg(){
 }
 function renderFunnelTable(){
   const ix=idxRange();
-  const rows=sumDim(FDIM,ix).map(r=>{const v=r.v;return{
+  // current DCD / RTE from CRM lead_status, per segment (range-filtered)
+  const inRange=new Set(ix.map(i=>DAYS[i])), segCol=FDIM==='pa'?LC.pa:LC.pod;
+  const DCD_ST=new Set(['Discovery call done','Discovery_Call_Done']), RTE_ST=new Set(['Interested-Ready to enroll']);
+  const cur={};
+  LEADS.forEach(x=>{ if(!inRange.has(x[LC.date]))return; const seg=x[segCol]||'(blank)', s=(x[LC.status]||'').trim();
+    if(!cur[seg])cur[seg]={dcd:0,rte:0}; if(DCD_ST.has(s))cur[seg].dcd++; if(RTE_ST.has(s))cur[seg].rte++; });
+  const rows=sumDim(FDIM,ix).map(r=>{const v=r.v,c=cur[r.name||'(blank)']||{dcd:0,rte:0};return{
     name:r.name||'(blank)',leads:v[LX.leads],att:v[LX.att],conn:v[LX.conn],aS:v[LX.attSum],cS:v[LX.connSum],
     ans0:v[LX.conn0],ans1:Math.max(0,v[LX.conn]-v[LX.conn0]),qual:v[LX.qual],dq:v[LX.dq],
-    vcb:v[LX.vcB],vcd:v[LX.vcDone],dcd:v[LX.dcd],rte:v[LX.rte],sale:v[LX.sale]};}).filter(r=>r.leads>0);
-  const cols=[['name','Segment'],['leads','Leads'],['att','Attempted · avg'],['conn','Connected · avg'],['ans0','Ans 0'],
-    ['ans1','Ans ≥1'],['qual','Bot Q'],['dq','Bot DQ'],['vcb','VC booked'],['vcd','VC done'],['dcd','DCD'],['rte','RTE'],['sale','Sale']];
+    vcb:v[LX.vcB],vcd:v[LX.vcDone],dcd:v[LX.dcd],curDcd:c.dcd,rte:v[LX.rte],curRte:c.rte,sale:v[LX.sale]};}).filter(r=>r.leads>0);
+  const cols=[['name','Segment'],['leads','Leads'],['att','Leads attempted · avg'],['conn','Leads connected · avg'],['ans0','Ans 0'],
+    ['ans1','Ans ≥1'],['qual','Bot Q'],['dq','Bot DQ'],['vcb','VC booked'],['vcd','VC done'],
+    ['dcd','DCD flag'],['curDcd','Cur DCD'],['rte','RTE flag'],['curRte','Cur RTE'],['sale','Sale']];
   rows.sort((a,b)=>{const k=FSORT.k;if(k==='name')return FSORT.dir*(''+a.name).localeCompare(''+b.name);return FSORT.dir*((a[k]||0)-(b[k]||0));});
   const mxL=Math.max(...rows.map(r=>r.leads),1);
   const th=cols.map(c=>`<th data-k="${c[0]}" class="${FSORT.k===c[0]?'on':''}">${c[1]}${FSORT.k===c[0]?(FSORT.dir<0?' ▾':' ▴'):''}</th>`).join('');
@@ -826,8 +839,9 @@ function renderFunnelTable(){
     <td class="num">${nf(r.conn)} <span class="pctv">${r.conn?(r.cS/r.conn).toFixed(1):'0'}</span></td>
     <td class="num">${nf(r.ans0)}</td>
     <td class="num">${nf(r.ans1)}</td><td class="num">${nf(r.qual)}</td><td class="num">${nf(r.dq)}</td>
-    <td class="num">${nf(r.vcb)}</td><td class="num">${nf(r.vcd)}</td><td class="num">${nf(r.dcd)}</td>
-    <td class="num">${nf(r.rte)}</td><td class="num">${nf(r.sale)}</td></tr>`).join('');
+    <td class="num">${nf(r.vcb)}</td><td class="num">${nf(r.vcd)}</td>
+    <td class="num">${nf(r.dcd)}</td><td class="num">${nf(r.curDcd)}</td>
+    <td class="num">${nf(r.rte)}</td><td class="num">${nf(r.curRte)}</td><td class="num">${nf(r.sale)}</td></tr>`).join('');
   const el=document.getElementById('funnelTable');
   el.innerHTML=`<thead><tr>${th}</tr></thead><tbody>${body}</tbody>`;
   el.querySelectorAll('th').forEach(h=>h.onclick=()=>{const k=h.dataset.k;
