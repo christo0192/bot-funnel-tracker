@@ -224,12 +224,8 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="hint">Lag from lead to the bot's first successful connect (of connected leads)</div></div></div><div id="ttcBars"></div></div>
 
   <div class="sectionlabel">3 · Question &amp; answer-wise connects</div>
-  <div class="grid c2b">
-    <div class="card"><div class="cardhead"><div><h3>Conversation depth — where calls drop</h3>
-      <div class="hint">Cumulative: of connected leads, how many reached at LEAST each step (≥1…≥6). Flags the biggest single drop.</div></div></div><div id="answerDepth"></div></div>
-    <div class="card"><div class="cardhead"><div><h3>Answers reached — distribution</h3>
-      <div class="hint">Exact count: how many leads answered EXACTLY N questions (0–9). The raw spread behind the funnel.</div></div></div><div id="ansDist"></div></div>
-  </div>
+  <div class="card"><div class="cardhead"><div><h3>Conversation depth — where calls drop</h3>
+    <div class="hint">Cumulative: of connected leads, how many reached at LEAST each step (≥1…≥6). Flags the biggest single drop.</div></div></div><div id="answerDepth"></div></div>
 
   <div class="sectionlabel">4 · PA &amp; Pod-wise attempts and connects</div>
   <div class="grid c2b">
@@ -834,7 +830,7 @@ function renderAll(){
   const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
   document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
   renderKPI();renderFunnel();renderImpact();
-  renderQualOutcome();renderAnswerDepth();renderAnsDist();renderQdimSeg();renderQualDrivers();renderDOW();renderDOWVol();
+  renderQualOutcome();renderAnswerDepth();renderQdimSeg();renderQualDrivers();renderDOW();renderDOWVol();
   renderAttConn('owner','podAtt');renderAttConn('pa','paAtt');
   renderTrends();renderMixes();renderSG();renderSGLegend();renderDimSeg();renderSeg();
   const g=new Date(DATA.generated_at);
