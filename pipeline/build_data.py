@@ -104,7 +104,7 @@ XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
-LXCOLS = ["leads","att","conn","ans1","ans6","qual","dq","vcB","dcd","sale","attSum","connSum"]
+LXCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcB","vcDone","dcd","rte","sale","attSum","connSum"]
 LX = {k: i for i, k in enumerate(LXCOLS)}
 LM = len(LXCOLS)
 
@@ -210,12 +210,14 @@ def main():
     def add_dim(vec, r):
         vec[LX["leads"]] += 1
         vec[LX["att"]] += b(r["bot_attempted"]); vec[LX["conn"]] += b(r["bot_connected"])
+        vec[LX["conn0"]] += b(r["flag_connected_0_ans"])
         vec[LX["ans1"]] += b(r["flag_ans_1"]); vec[LX["ans6"]] += b(r["flag_ans_6"])
         vec[LX["qual"]] += b(r["bot_qualified"])
         vec[LX["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
         po = r["phase2_outcome"]
         vec[LX["vcB"]] += 1 if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled") else 0
-        vec[LX["dcd"]] += b(r["dcd_flag"]); vec[LX["sale"]] += b(r["sale_flag"])
+        vec[LX["vcDone"]] += b(r["vc_done_flag"])
+        vec[LX["dcd"]] += b(r["dcd_flag"]); vec[LX["rte"]] += b(r["rte_flag"]); vec[LX["sale"]] += b(r["sale_flag"])
         vec[LX["attSum"]] += (r["total_call_attempts"] or 0)
         vec[LX["connSum"]] += (r["total_connected_calls"] or 0)
 
