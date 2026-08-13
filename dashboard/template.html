@@ -75,6 +75,7 @@ a{color:var(--accent)}
 .kpi .big{font-size:21px}
 .kpi .spark svg{height:26px}
 .kpi .lbl{font-size:11px}
+.kpibreak{grid-column:1/-1;height:0;margin:0;padding:0;border:0}
 .c2{grid-template-columns:2fr 1fr}
 .c2b{grid-template-columns:1fr 1fr}
 .c3{grid-template-columns:repeat(3,1fr)}
@@ -119,6 +120,9 @@ a{color:var(--accent)}
 .callout .v{font-size:19px;font-weight:700;margin-top:2px}
 .callout .d{font-size:11.5px;color:var(--ink-2);margin-top:1px}
 /* bars list */
+.cardnum{font-size:24px;font-weight:700;letter-spacing:-.01em;margin:0 0 10px}
+.cardnum span{font-size:12px;font-weight:500;color:var(--ink-3)}
+.pctv{color:var(--ink-3);font-weight:500;font-size:11.5px}
 .blist{display:flex;flex-direction:column;gap:7px;margin-top:4px}
 .brow{display:grid;grid-template-columns:132px 1fr 62px;align-items:center;gap:10px;font-size:12.5px}
 .brow .bn{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -193,7 +197,7 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
       <button class="iconbtn" id="themeBtn" title="Toggle theme">◐</button>
     </div>
   </div>
-  <div class="denote">One denominator — every headline percentage is a share of <b>Leads</b>. The coloured % pill on each card is the <b>week-over-week change</b> (last 7 days vs the previous 7). <span id="rangeTxt"></span></div>
+  <div class="denote">One denominator — every headline percentage is a share of <b>Leads</b>. <span id="rangeTxt"></span></div>
 
   <div class="grid kpiwrap" id="kpis"></div>
 
@@ -204,7 +208,7 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
   </div>
   <div class="card">
     <div class="cardhead"><div><h3>Qualification drivers by segment</h3>
-      <div class="hint">Qual % vs DQ % per segment (≥20 leads), best first</div></div>
+      <div class="hint">Qual % vs DQ % per segment (≥20 leads), most leads first · value = qualified %</div></div>
       <div class="seg" id="qdimSeg"></div></div>
     <div id="qualDrivers"></div>
   </div>
@@ -352,11 +356,8 @@ function wow(metricIdx){ // last 7 vs prev 7 (by offset)
 function idxOffRange(a,b){const o=[];for(let i=0;i<ND;i++)if(DAYS[i]>=a&&DAYS[i]<=b)o.push(i);return o;}
 
 /* ---------- KPI ---------- */
-function kpiTile(lbl,val,sub,d,spark,invert){
-  let dc='flat',dt='—';
-  if(d!=null&&isFinite(d)){const good=invert?d<0:d>0;dc=Math.abs(d)<0.5?'flat':(good?'up':'dn');dt=(d>0?'+':'')+d.toFixed(0)+'%';}
-  return `<div class="card kpi"><div class="row"><span class="lbl">${lbl}</span>
-    <span class="delta ${dc}" title="week-over-week">${dt}</span></div>
+function kpiTile(lbl,val,sub,spark){
+  return `<div class="card kpi"><div class="row"><span class="lbl">${lbl}</span></div>
     <div class="big num">${val}</div><div class="sub">${sub}</div>
     <div class="spark">${spark||''}</div></div>`;
 }
@@ -395,19 +396,19 @@ function renderKPI(){
   const att=t[X.att], conn=t[X.conn], conn0=t[X.conn0], connW=conn-conn0;
   const q=t[X.qual], booked=t[X.vcS]+t[X.vcA];
   el.innerHTML=[
-    kpiTile('Total leads',nf(t[X.leads]),`${fmtD(ix[0]!=null?DAYS[ix[0]]:0)} – ${fmtD(DAYS[ND-1])}`,wow(X.leads).delta,sparkline(X.leads,false)),
-    kpiTile('Attempted',nf(att),`${pf(att,L)} of leads`,wow(X.att).delta,sparkline(X.att,true)),
-    kpiTile('Connected',nf(conn),`${pf(conn,L)} of leads`,wow(X.conn).delta,sparkline(X.conn,true)),
-    kpiTile('Connected · 0 answer',nf(conn0),`${pf(conn0,conn)} of connected`,wow(X.conn0).delta,sparkline(X.conn0,true),true),
-    kpiTile('Connected · ≥1 answer',nf(connW),`${pf(connW,conn)} of connected`,wow(X.ans1).delta,sparkline(X.ans1,true)),
-    kpiTile('Overall connectivity',pf(conn,att),`${nf(conn)} of ${nf(att)} attempted`,wowRate(X.conn,X.att),sparkRate(X.conn,X.att)),
-    kpiTile('Bot qualified',nf(q),`${pf(q,L)} of leads`,wow(X.qual).delta,sparkline(X.qual,true)),
-    kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],L)} of leads`,wow(X.dq).delta,sparkline(X.dq,true),true),
-    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified`,wow(X.vcS).delta,sparkline(X.vcS,false)),
-    kpiTile('VC done',nf(t[X.vcDone]),`${pf(t[X.vcDone],booked)} of booked`,wow(X.vcDone).delta,sparkline(X.vcDone,false)),
-    kpiTile('DCD',nf(t[X.dcd]),`${pf(t[X.dcd],L)} of leads`,wow(X.dcd).delta,sparkline(X.dcd,false)),
-    kpiTile('RTE',nf(t[X.rte]),`${pf(t[X.rte],L)} of leads`,wow(X.rte).delta,sparkline(X.rte,false)),
-    kpiTile('Sale',nf(t[X.sale]),`${pf(t[X.sale],L)} of leads · ${pf(t[X.qSale],q)} of qual`,wow(X.sale).delta,sparkline(X.sale,false)),
+    kpiTile('Total leads',nf(t[X.leads]),`${fmtD(ix[0]!=null?DAYS[ix[0]]:0)} – ${fmtD(DAYS[ND-1])}`,sparkline(X.leads,false)),
+    kpiTile('Attempted',nf(att),`${pf(att,L)} of leads`,sparkline(X.att,true)),
+    kpiTile('Connected',nf(conn),`${pf(conn,L)} of leads`,sparkline(X.conn,true)),
+    kpiTile('Connected · 0 answer',nf(conn0),`${pf(conn0,conn)} of connected`,sparkline(X.conn0,true)),
+    kpiTile('Connected · ≥1 answer',nf(connW),`${pf(connW,conn)} of connected`,sparkline(X.ans1,true)),
+    '<div class="kpibreak"></div>',
+    kpiTile('Bot qualified',nf(q),`${pf(q,L)} of leads`,sparkline(X.qual,true)),
+    kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],L)} of leads`,sparkline(X.dq,true)),
+    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified`,sparkline(X.vcS,false)),
+    kpiTile('VC done',nf(t[X.vcDone]),`${pf(t[X.vcDone],booked)} of booked`,sparkline(X.vcDone,false)),
+    kpiTile('DCD',nf(t[X.dcd]),`${pf(t[X.dcd],L)} of leads`,sparkline(X.dcd,false)),
+    kpiTile('RTE',nf(t[X.rte]),`${pf(t[X.rte],L)} of leads`,sparkline(X.rte,false)),
+    kpiTile('Sale',nf(t[X.sale]),`${pf(t[X.sale],L)} of leads · ${pf(t[X.qSale],q)} of qual`,sparkline(X.sale,false)),
   ].join('');
 }
 
@@ -530,12 +531,13 @@ function barsInto(elId,pairs,opt){
   opt=opt||{};const tot=pairs.reduce((s,p)=>s+p[1],0)||1;
   const mx=Math.max(...pairs.map(p=>p[1]),1e-9);
   const el=document.getElementById(elId);
-  el.innerHTML='<div class="blist">'+pairs.map((p,i)=>{
+  const val=p=>opt.pct?`${nf(p[1])} <span class="pctv">(${pf(p[1],tot,0)})</span>`:nf(p[1]);
+  el.innerHTML=(opt.head||'')+'<div class="blist">'+pairs.map((p,i)=>{
     const col=opt.color?opt.color(i,p):cssv('--s1');
     return `<div class="brow" data-tip="${p[0]}|${nf(p[1])}|${pf(p[1],tot)} of shown">
       <span class="bn" title="${p[0]}">${p[0]}</span>
       <div class="btrack"><span style="width:${(p[1]/mx*100).toFixed(1)}%;background:${col}"></span></div>
-      <span class="bv num">${nf(p[1])}</span></div>`;}).join('')+'</div>';
+      <span class="bv num">${val(p)}</span></div>`;}).join('')+'</div>';
   bindTip(elId,'.brow');
 }
 function bindTip(elId,sel){
@@ -545,15 +547,12 @@ function bindTip(elId,sel){
     n.onmouseleave=tipHide;});
 }
 function renderMixes(){
-  const ix=idxRange();
+  const ix=idxRange(), L=sumDaily(ix)[X.leads]||1;
   const dq=sumHist('dq',ix); const dqp=M.dq.map((l,i)=>[l,dq[i]]).filter(p=>p[1]>0).sort((a,b)=>b[1]-a[1]);
-  const status=[cssv('--crit'),cssv('--serious'),cssv('--warn'),cssv('--s4'),cssv('--s7'),cssv('--s5'),cssv('--s8'),cssv('--ink-3')];
-  barsInto('dqBars',dqp,{color:(i)=>status[i%status.length]});
-  const vagueI=M.dq.indexOf('Vague answers'),psaI=M.dq.indexOf('PSA review needed');
   const dqTot=dq.reduce((s,v)=>s+v,0)||1;
-  document.getElementById('dqNote').innerHTML=`<div class="hint" style="margin-top:10px">
-    Vague answers = <b>${pf(dq[vagueI]||0,dqTot)}</b> of DQs · PSA review = <b>${pf(dq[psaI]||0,dqTot)}</b>.
-    Watch the vague rate against the SOP calibration threshold.</div>`;
+  const status=[cssv('--crit'),cssv('--serious'),cssv('--warn'),cssv('--s4'),cssv('--s7'),cssv('--s5'),cssv('--s8'),cssv('--ink-3')];
+  barsInto('dqBars',dqp,{color:(i)=>status[i%status.length],pct:true,
+    head:`<div class="cardnum">${nf(dqTot)} <span>bot disqualified · ${pf(dqTot,L)} of leads</span></div>`});
   const buk=sumHist('buk',ix);barsInto('bukBars',M.buckets.map((l,i)=>[l,buk[i]]),{color:(i)=>[cssv('--ink-3'),cssv('--s2'),cssv('--s8'),cssv('--s4'),cssv('--s3')][i]});
   const ttc=sumHist('ttc',ix);barsInto('ttcBars',M.ttc.map((l,i)=>[l,ttc[i]]).filter(p=>p[1]>0),{color:()=>cssv('--seq-3')});
   const at=sumHist('att',ix);barsInto('attBars',M.att.map((l,i)=>[l,at[i]]),{color:()=>cssv('--seq-3')});
@@ -620,10 +619,8 @@ function renderQualOutcome(){
     l.includes('denied')?cssv('--warn'): l.includes('Retrying')?cssv('--s4'):
     l.includes('Retries over')?cssv('--crit'):cssv('--ink-3');
   const pretty=l=> l==='Bot Qualified'?'Qualified (no sub-status yet)':l.replace('Bot Qualified – ','');
-  barsInto('qualOutcome', idxs.map(p=>[pretty(p[0]),p[1]]), {color:(i)=>colOf(idxs[i][0])});
-  document.getElementById('qualOutcome').insertAdjacentHTML('beforeend',
-    `<div class="hint" style="margin-top:10px"><b>${nf(t[X.qual])}</b> bot-qualified in total; <b>${nf(withSub)}</b> carry a booking sub-status above.
-     Qualification is a pass when no gate fires, so there is no per-lead "reason" — the meaningful metric is what qualified leads do next.</div>`);
+  barsInto('qualOutcome', idxs.map(p=>[pretty(p[0]),p[1]]), {color:(i)=>colOf(idxs[i][0]),pct:true,
+    head:`<div class="cardnum">${nf(t[X.qual])} <span>bot qualified · ${pf(t[X.qual],t[X.leads]||1)} of leads</span></div>`});
 }
 function renderAnswerDepth(){
   const ix=idxRange(), ans=sumHist('ans',ix), t=sumDaily(ix), conn=t[X.conn]||1;
@@ -650,11 +647,11 @@ function renderQdimSeg(){
 function renderQualDrivers(){
   const ix=idxRange();
   const rows=sumDim(QDIM,ix).map(r=>({name:r.name,leads:r.v[LX.leads],q:r.v[LX.qual]/(r.v[LX.leads]||1),d:r.v[LX.dq]/(r.v[LX.leads]||1)}))
-    .filter(r=>r.leads>=20).sort((a,b)=>b.q-a.q).slice(0,12);
+    .filter(r=>r.leads>=20).sort((a,b)=>b.leads-a.leads).slice(0,12);
   const mx=Math.max(...rows.flatMap(r=>[r.q,r.d]),0.01), gc=cssv('--good'), rc=cssv('--crit');
   document.getElementById('qualDrivers').innerHTML='<div class="blist">'+rows.map(r=>
     `<div class="qrow" data-tip="${r.name}|${nf(r.leads)} leads|Qualified ${(r.q*100).toFixed(1)}%|Disqualified ${(r.d*100).toFixed(1)}%">
-      <span class="bn" title="${r.name}">${r.name}</span>
+      <span class="bn" title="${r.name}">${r.name} <span class="pctv">· ${nf(r.leads)}</span></span>
       <div class="qbars">
         <div class="btrack"><span style="width:${(r.q/mx*100).toFixed(0)}%;background:${gc}"></span></div>
         <div class="btrack"><span style="width:${(r.d/mx*100).toFixed(0)}%;background:${rc}"></span></div></div>

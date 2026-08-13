@@ -66,6 +66,27 @@ def stage_group(s):
         return "Open/New"
     return "Interested/Nurture"  # sensible default for stray "Interested*" statuses
 
+# role_domain (sub-domain) -> complete domain group
+ROLE_GROUPS = ["Software Engineer", "Data", "QA / SDET", "DevOps / SRE / Cloud",
+               "Product / Program Mgmt", "Engineering Management", "AI / ML", "Security", "Other"]
+_ROLE_MAP = {
+    "Software Engineer": {"Full Stack", "Back-end", "Front-end", "Other Software Engineers",
+                          "Android Developer", "iOS Developer", "Embedded Software Engineer"},
+    "Data": {"Data Engineer", "Data Analyst / Business Analyst", "Data Science"},
+    "QA / SDET": {"Test Engineer / SDET / QE"},
+    "DevOps / SRE / Cloud": {"DevOps Engineer", "Site Reliability Engineer", "Cloud Engineer"},
+    "Product / Program Mgmt": {"Technical Program Manager", "Tech Product Manager"},
+    "Engineering Management": {"Engineering Manager - any domain"},
+    "AI / ML": {"Machine Learning / AI"},
+    "Security": {"Cyber Security"},
+}
+def role_group(s):
+    s = (s or "").strip()
+    for g, members in _ROLE_MAP.items():
+        if s in members:
+            return g
+    return "Other"
+
 def att_bucket(n):
     n = n or 0
     if n <= 0: return 0
@@ -94,9 +115,9 @@ DIMS_SRC = {
     "city": "city",
     "source": "channel",
     "webinar": "webinar_type",
-    "role": "role_domain",
     "exp": "work_ex_category",
 }
+# "role" is a COMPUTED dimension (role_domain grouped into complete domains)
 
 SELECT_COLS = [
     "lead_date","pod","city","channel","webinar_type","role_domain",
@@ -154,6 +175,9 @@ def main():
         dims[name]["labels"] = labels
         dims[name]["_map"] = {lab: j for j, lab in enumerate(labels)}
         dims[name]["d"] = [[[0]*LM for _ in labels] for _ in range(ND)]
+    # computed dimension: role_domain grouped into complete domains
+    dims["role"] = {"labels": ROLE_GROUPS, "_map": {l: j for j, l in enumerate(ROLE_GROUPS)},
+                    "d": [[[0]*LM for _ in ROLE_GROUPS] for _ in range(ND)]}
     # computed dimension: day-of-week of the bot's first call (falls back to lead_date)
     dims["dow"] = {"labels": DOW, "_map": {l: j for j, l in enumerate(DOW)},
                    "d": [[[0]*LM for _ in DOW] for _ in range(ND)]}
@@ -206,6 +230,7 @@ def main():
         for name, col in DIMS_SRC.items():
             j = dims[name]["_map"][(r[col] or "(blank)")]
             add_dim(dims[name]["d"][i][j], r)
+        add_dim(dims["role"]["d"][i][dims["role"]["_map"][role_group(r["role_domain"])]], r)
         cday = r["bot_first_attempt_date"] or r["lead_date"]
         add_dim(dims["dow"]["d"][i][cday.weekday()], r)
         # histograms
