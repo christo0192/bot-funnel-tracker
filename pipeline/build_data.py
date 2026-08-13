@@ -104,7 +104,7 @@ XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
-LXCOLS = ["leads","att","conn","ans1","ans6","qual","dq","vcB","dcd","sale"]
+LXCOLS = ["leads","att","conn","ans1","ans6","qual","dq","vcB","dcd","sale","attSum","connSum"]
 LX = {k: i for i, k in enumerate(LXCOLS)}
 LM = len(LXCOLS)
 
@@ -216,6 +216,8 @@ def main():
         po = r["phase2_outcome"]
         vec[LX["vcB"]] += 1 if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled") else 0
         vec[LX["dcd"]] += b(r["dcd_flag"]); vec[LX["sale"]] += b(r["sale_flag"])
+        vec[LX["attSum"]] += (r["total_call_attempts"] or 0)
+        vec[LX["connSum"]] += (r["total_connected_calls"] or 0)
 
     LBL = {v: i for i, v in enumerate(BUCKETS)}
     DQI = {v: i for i, v in enumerate(DQ)}

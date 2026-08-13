@@ -173,6 +173,9 @@ svg{display:block;width:100%;overflow:visible}
 .sbar{display:flex;height:17px;border-radius:5px;overflow:hidden;background:var(--surf-2)}
 .sseg{display:block;height:100%}
 .sseg+.sseg{box-shadow:-1.5px 0 0 var(--surf)}
+.arow{display:grid;grid-template-columns:150px 1fr 84px;align-items:center;gap:10px;font-size:12.5px;padding:2px 0}
+.arow .bn{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arow .av{text-align:right;color:var(--ink);font-size:12px;font-variant-numeric:tabular-nums}
 footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
 </style>
 
@@ -231,9 +234,9 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
   <div class="sectionlabel">4 · PA &amp; Pod-wise attempts and connects</div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Pod-wise attempts &amp; connects</h3>
-      <div class="hint">Top pods by attempts; value = connect rate</div></div></div><div id="podAtt"></div></div>
+      <div class="hint">By lead volume · bar = connect coverage of leads · right = avg dials · connects per attempted lead</div></div></div><div id="podAtt"></div></div>
     <div class="card"><div class="cardhead"><div><h3>PA-wise attempts &amp; connects</h3>
-      <div class="hint">Top PAs by attempts; value = connect rate</div></div></div><div id="paAtt"></div></div>
+      <div class="hint">By lead volume · bar = connect coverage of leads · right = avg dials · connects per attempted lead</div></div></div><div id="paAtt"></div></div>
   </div>
 
   <div class="sectionlabel">Business funnel &amp; impact</div>
@@ -707,17 +710,22 @@ function renderAnsDist(){
 }
 function renderAttConn(dim,elId){
   const ix=idxRange();
-  const rows=sumDim(dim,ix).map(r=>({name:r.name,att:r.v[LX.att],conn:r.v[LX.conn]}))
-    .filter(r=>r.att>0).sort((a,b)=>b.att-a.att).slice(0,12);
-  const mx=Math.max(...rows.map(r=>r.att),1), ac=cssv('--s1'), cc=cssv('--s3');
-  document.getElementById(elId).innerHTML='<div class="blist">'+rows.map(r=>
-    `<div class="qrow" data-tip="${r.name}|Attempts ${nf(r.att)}|Connects ${nf(r.conn)}|Connect rate ${pf(r.conn,r.att)}">
-      <span class="bn" title="${r.name}">${r.name||'(blank)'}</span>
-      <div class="qbars"><div class="btrack"><span style="width:${(r.att/mx*100).toFixed(0)}%;background:${ac}"></span></div>
-      <div class="btrack"><span style="width:${(r.conn/mx*100).toFixed(0)}%;background:${cc}"></span></div></div>
-      <span class="bv num">${pf(r.conn,r.att)}</span></div>`).join('')+'</div>'+
-    `<div class="legend"><span><i style="background:${ac}"></i>Attempts</span><span><i style="background:${cc}"></i>Connects</span></div>`;
-  bindTip(elId,'.qrow');
+  const rows=sumDim(dim,ix).map(r=>({name:r.name,leads:r.v[LX.leads],att:r.v[LX.att],conn:r.v[LX.conn],
+      attSum:r.v[LX.attSum],connSum:r.v[LX.connSum]}))
+    .filter(r=>r.leads>=20).sort((a,b)=>b.leads-a.leads).slice(0,12);
+  const cc=cssv('--good'), ac=cssv('--warn'), nc=cssv('--surf-2');
+  document.getElementById(elId).innerHTML='<div class="blist">'+rows.map(r=>{
+    const L=r.leads||1, connP=r.conn/L*100, attNC=Math.max(0,r.att-r.conn)/L*100, notAtt=Math.max(0,L-r.att)/L*100;
+    const avgA=r.att?r.attSum/r.att:0, avgC=r.att?r.connSum/r.att:0;
+    return `<div class="arow" data-tip="${r.name}|${nf(r.leads)} leads|Attempted ${nf(r.att)} (${pf(r.att,L)})|Connected ${nf(r.conn)} (${pf(r.conn,L)})|Avg dials / attempted lead ${avgA.toFixed(2)}|Avg connects / attempted lead ${avgC.toFixed(2)}">
+      <span class="bn" title="${r.name}">${r.name||'(blank)'} <span class="pctv">· ${nf(r.leads)}</span></span>
+      <div class="sbar">
+        <span class="sseg" style="width:${connP.toFixed(2)}%;background:${cc}"></span>
+        <span class="sseg" style="width:${attNC.toFixed(2)}%;background:${ac}"></span>
+        <span class="sseg" style="width:${notAtt.toFixed(2)}%;background:${nc}"></span></div>
+      <span class="av"><b>${avgA.toFixed(1)}</b> · <b>${avgC.toFixed(1)}</b></span></div>`;}).join('')+'</div>'+
+    `<div class="legend"><span><i style="background:${cc}"></i>Connected</span><span><i style="background:${ac}"></i>Attempted, no connect</span><span><i style="background:${nc}"></i>Not attempted</span><span class="pctv">right = avg dials · avg connects per attempted lead</span></div>`;
+  bindTip(elId,'.arow');
 }
 
 /* ---------- lead explorer (all leads: search + paginate + CSV) ---------- */
