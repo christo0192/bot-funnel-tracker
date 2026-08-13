@@ -170,6 +170,9 @@ svg{display:block;width:100%;overflow:visible}
 .qrow .bn{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qbars{display:flex;flex-direction:column;gap:3px}
 .qbars .btrack{height:8px;background:var(--surf-2)}
+.sbar{display:flex;height:17px;border-radius:5px;overflow:hidden;background:var(--surf-2)}
+.sseg{display:block;height:100%}
+.sseg+.sseg{box-shadow:-1.5px 0 0 var(--surf)}
 footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
 </style>
 
@@ -646,17 +649,19 @@ function renderQdimSeg(){
 }
 function renderQualDrivers(){
   const ix=idxRange();
-  const rows=sumDim(QDIM,ix).map(r=>({name:r.name,leads:r.v[LX.leads],q:r.v[LX.qual]/(r.v[LX.leads]||1),d:r.v[LX.dq]/(r.v[LX.leads]||1)}))
+  const rows=sumDim(QDIM,ix).map(r=>({name:r.name,leads:r.v[LX.leads],qn:r.v[LX.qual],dn:r.v[LX.dq]}))
     .filter(r=>r.leads>=20).sort((a,b)=>b.leads-a.leads).slice(0,12);
-  const mx=Math.max(...rows.flatMap(r=>[r.q,r.d]),0.01), gc=cssv('--good'), rc=cssv('--crit');
-  document.getElementById('qualDrivers').innerHTML='<div class="blist">'+rows.map(r=>
-    `<div class="qrow" data-tip="${r.name}|${nf(r.leads)} leads|Qualified ${(r.q*100).toFixed(1)}%|Disqualified ${(r.d*100).toFixed(1)}%">
+  const gc=cssv('--good'), rc=cssv('--crit'), nc=cssv('--surf-2');
+  document.getElementById('qualDrivers').innerHTML='<div class="blist">'+rows.map(r=>{
+    const L=r.leads||1, qp=r.qn/L*100, dp=r.dn/L*100, np=Math.max(0,100-qp-dp);
+    return `<div class="qrow" data-tip="${r.name}|${nf(r.leads)} leads|Qualified ${qp.toFixed(1)}% (${nf(r.qn)})|Disqualified ${dp.toFixed(1)}% (${nf(r.dn)})|Neither ${np.toFixed(1)}%">
       <span class="bn" title="${r.name}">${r.name} <span class="pctv">· ${nf(r.leads)}</span></span>
-      <div class="qbars">
-        <div class="btrack"><span style="width:${(r.q/mx*100).toFixed(0)}%;background:${gc}"></span></div>
-        <div class="btrack"><span style="width:${(r.d/mx*100).toFixed(0)}%;background:${rc}"></span></div></div>
-      <span class="bv num">${(r.q*100).toFixed(1)}%</span></div>`).join('')+'</div>'+
-    `<div class="legend"><span><i style="background:${gc}"></i>Qualified %</span><span><i style="background:${rc}"></i>Disqualified %</span></div>`;
+      <div class="sbar">
+        <span class="sseg" style="width:${qp.toFixed(2)}%;background:${gc}"></span>
+        <span class="sseg" style="width:${dp.toFixed(2)}%;background:${rc}"></span>
+        <span class="sseg" style="width:${np.toFixed(2)}%;background:${nc}"></span></div>
+      <span class="bv num">${qp.toFixed(1)}%</span></div>`;}).join('')+'</div>'+
+    `<div class="legend"><span><i style="background:${gc}"></i>Qualified %</span><span><i style="background:${rc}"></i>Disqualified %</span><span><i style="background:${nc}"></i>Neither</span></div>`;
   bindTip('qualDrivers','.qrow');
 }
 function renderDOW(){
