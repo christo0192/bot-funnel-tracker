@@ -193,9 +193,11 @@ def main():
         vec[X["att"]] += b(r["bot_attempted"]); vec[X["conn"]] += b(r["bot_connected"])
         vec[X["conn0"]] += b(r["flag_connected_0_ans"])
         vec[X["ans1"]] += b(r["flag_ans_1"]); vec[X["ans6"]] += b(r["flag_ans_6"])
-        # SINGLE "Bot qualified" definition used across all KPIs/sections: qualified on a
-        # call AND final phase2_outcome NOT collapsed to Not_Triggered / DISQUALIFIED.
-        qualified = 1 if (b(r["bot_qualified"]) and r["phase2_outcome"] not in ("Not_Triggered", "DISQUALIFIED")) else 0
+        # "Bot qualified" = the view's bot_qualified flag. The view now keeps a qualified
+        # lead's proper phase2_outcome (the earlier Not_Triggered/DISQUALIFIED collapse was
+        # fixed upstream), so no NT/DQ exclusion is needed here. `qualified` drives every
+        # dependent metric below (is_q, qSale) and the KPI/funnel via X.qual.
+        qualified = b(r["bot_qualified"])
         vec[X["qual"]] += qualified
         vec[X["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
         po = r["phase2_outcome"]
@@ -261,7 +263,7 @@ def main():
         vec[LX["att"]] += b(r["bot_attempted"]); vec[LX["conn"]] += b(r["bot_connected"])
         vec[LX["conn0"]] += b(r["flag_connected_0_ans"])
         vec[LX["ans1"]] += b(r["flag_ans_1"]); vec[LX["ans6"]] += b(r["flag_ans_6"])
-        _qualified = 1 if (b(r["bot_qualified"]) and r["phase2_outcome"] not in ("Not_Triggered", "DISQUALIFIED")) else 0
+        _qualified = b(r["bot_qualified"])
         vec[LX["qual"]] += _qualified
         vec[LX["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
         po = r["phase2_outcome"]

@@ -388,7 +388,7 @@ function renderKPI(){
     kpiTile('Connected · 0 answer',nf(conn0),`${pf(conn0,conn)} of connected`,sparkline(X.conn0,true)),
     kpiTile('Connected · ≥1 answer',nf(connW),`${pf(connW,conn)} of connected`,sparkline(X.ans1,true)),
     '<div class="kpibreak"></div>',
-    kpiTile('Bot qualified',nf(q),`${pf(q,L)} of leads · excl. Not_Triggered/Disqualified`,sparkline(X.qual,true)),
+    kpiTile('Bot qualified',nf(q),`${pf(q,L)} of leads`,sparkline(X.qual,true)),
     kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],L)} of leads`,sparkline(X.dq,true)),
     kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified · VC scheduled + alt scheduled`,sparkline(X.vcS,false)),
     kpiTile('VC done',nf(t[X.vcDoneBot]),`${pf(t[X.vcDoneBot],booked)} of bot-booked VCs · ${nf(t[X.vcDone]-t[X.vcDoneBot])} other (VC done, not booked by the bot)<div class="kpinote">+${nf(t[X.vcEdgeDcd]+t[X.vcEdgeRte])} leads: VC booked by the bot but marked DCD (${nf(t[X.vcEdgeDcd])}) or RTE (${nf(t[X.vcEdgeRte])}) by the PA — no VC-done.</div>`,sparkline(X.vcDone,false)),
