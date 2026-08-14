@@ -391,8 +391,8 @@ function renderKPI(){
     kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],L)} of leads`,sparkline(X.dq,true)),
     kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified`,sparkline(X.vcS,false)),
     kpiTile('VC done',nf(t[X.vcDone]),`${pf(t[X.vcDone],booked)} of booked`,sparkline(X.vcDone,false)),
-    kpiTile('DCD flag',nf(t[X.dcdQ]+t[X.dcdDQ]),`${pf(t[X.dcdQ]+t[X.dcdDQ],L)} of leads · ${nf(t[X.dcdQ])} qual, ${nf(t[X.dcdDQ])} disq, ${nf(t[X.dcd]-t[X.dcdQ]-t[X.dcdDQ])} other`,sparkline(X.dcd,false)),
-    kpiTile('RTE flag',nf(t[X.rteQ]+t[X.rteDQ]),`${pf(t[X.rteQ]+t[X.rteDQ],L)} of leads · ${nf(t[X.rteQ])} qual, ${nf(t[X.rteDQ])} disq, ${nf(t[X.rte]-t[X.rteQ]-t[X.rteDQ])} other`,sparkline(X.rte,false)),
+    kpiTile('DCD flag',nf(t[X.dcdQ]+t[X.dcdDQ]),`${pf(t[X.dcdQ]+t[X.dcdDQ],L)} of leads · ${nf(t[X.dcdQ])} qual, ${nf(t[X.dcdDQ])} disq`,sparkline(X.dcd,false)),
+    kpiTile('RTE flag',nf(t[X.rteQ]+t[X.rteDQ]),`${pf(t[X.rteQ]+t[X.rteDQ],L)} of leads · ${nf(t[X.rteQ])} qual, ${nf(t[X.rteDQ])} disq`,sparkline(X.rte,false)),
     kpiTile('Sale',nf(t[X.sale]),`${pf(t[X.sale],L)} of leads · ${pf(t[X.qSale],q)} of qual`,sparkline(X.sale,false)),
   ].join('');
 }
