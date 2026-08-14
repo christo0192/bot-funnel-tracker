@@ -103,7 +103,8 @@ def att_bucket(n):
 XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den",
          "retry","paOff","paAcc","paCall","paConn","dcd","vcDone","sale","wa","rte",
          "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
-         "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte","vcBookF"]
+         "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte","vcBookF",
+         "vcBookNT","vcBookDQ"]
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -225,6 +226,10 @@ def main():
         bot_booked_vc = b(r["vc_scheduled_flag"]) or b(r["vc_alt_scheduled_flag"])
         if bot_booked_vc:
             vec[X["vcBookF"]] += 1
+            # Booked leads whose collapsed final phase2_outcome got re-labelled (view keeps
+            # MAX(phase2_outcome), so later follow-up-call statuses can overwrite the booking).
+            if po == "Not_Triggered": vec[X["vcBookNT"]] += 1
+            elif po == "DISQUALIFIED": vec[X["vcBookDQ"]] += 1
         # vc_booked_date = earliest of the two scheduled dates the bot secured.
         sched_dates = [d for d in (r["vc_scheduled_date"], r["vc_alt_scheduled_date"]) if d is not None]
         vc_booked_date = min(sched_dates) if sched_dates else None
