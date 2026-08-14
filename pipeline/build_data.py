@@ -214,10 +214,10 @@ def main():
         verdict = r["bot_last_connected_date"]
         elig_dq = r["disqualification_reason"] in ELIG_DQ
         is_q = b(r["bot_qualified"]) == 1
-        if b(r["dcd_flag"]) and r["dcd_moved_date"] is not None and verdict is not None and r["dcd_moved_date"] > verdict:
+        if b(r["dcd_flag"]) and r["dcd_moved_date"] is not None and verdict is not None and r["dcd_moved_date"] >= verdict:
             if is_q: vec[X["dcdQ"]] += 1
             elif elig_dq: vec[X["dcdDQ"]] += 1
-        if b(r["rte_flag"]) and r["rte_moved_date"] is not None and verdict is not None and r["rte_moved_date"] > verdict:
+        if b(r["rte_flag"]) and r["rte_moved_date"] is not None and verdict is not None and r["rte_moved_date"] >= verdict:
             if is_q: vec[X["rteQ"]] += 1
             elif elig_dq: vec[X["rteDQ"]] += 1
 
