@@ -103,7 +103,7 @@ def att_bucket(n):
 XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den",
          "retry","paOff","paAcc","paCall","paConn","dcd","vcDone","sale","wa","rte",
          "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
-         "dcdQ","dcdDQ","rteQ","rteDQ"]
+         "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ"]
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -220,6 +220,12 @@ def main():
         if b(r["rte_flag"]) and r["rte_moved_date"] is not None and verdict is not None and r["rte_moved_date"] >= verdict:
             if is_q: vec[X["rteQ"]] += 1
             elif elig_dq: vec[X["rteDQ"]] += 1
+        # VC done: bot-attributable = the bot booked the VC and it's done
+        if b(r["vc_done_flag"]):
+            if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled"):
+                vec[X["vcDoneBot"]] += 1
+            if is_q:
+                vec[X["vcDoneQ"]] += 1
 
     def add_dim(vec, r):
         vec[LX["leads"]] += 1
