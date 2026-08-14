@@ -104,7 +104,7 @@ XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den
          "retry","paOff","paAcc","paCall","paConn","dcd","vcDone","sale","wa","rte",
          "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
          "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte","vcBookF",
-         "vcBookNT","vcBookDQ"]
+         "vcBookNT","vcBookDQ","qualX"]
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -194,6 +194,9 @@ def main():
         vec[X["conn0"]] += b(r["flag_connected_0_ans"])
         vec[X["ans1"]] += b(r["flag_ans_1"]); vec[X["ans6"]] += b(r["flag_ans_6"])
         vec[X["qual"]] += b(r["bot_qualified"])
+        # Bot qualified KPI (display only): exclude leads whose final phase2_outcome
+        # collapsed to Not_Triggered / DISQUALIFIED.
+        vec[X["qualX"]] += 1 if (b(r["bot_qualified"]) and r["phase2_outcome"] not in ("Not_Triggered", "DISQUALIFIED")) else 0
         vec[X["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
         po = r["phase2_outcome"]
         vec[X["vcS"]] += 1 if po == "Bot Qualified – VC scheduled" else 0
