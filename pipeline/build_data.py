@@ -104,7 +104,7 @@ XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den
          "retry","paOff","paAcc","paCall","paConn","dcd","vcDone","sale","wa","rte",
          "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
          "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte","vcBookF",
-         "vcBookNT","vcBookDQ","qualX"]
+         "vcBookNT","vcBookDQ"]
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -193,10 +193,10 @@ def main():
         vec[X["att"]] += b(r["bot_attempted"]); vec[X["conn"]] += b(r["bot_connected"])
         vec[X["conn0"]] += b(r["flag_connected_0_ans"])
         vec[X["ans1"]] += b(r["flag_ans_1"]); vec[X["ans6"]] += b(r["flag_ans_6"])
-        vec[X["qual"]] += b(r["bot_qualified"])
-        # Bot qualified KPI (display only): exclude leads whose final phase2_outcome
-        # collapsed to Not_Triggered / DISQUALIFIED.
-        vec[X["qualX"]] += 1 if (b(r["bot_qualified"]) and r["phase2_outcome"] not in ("Not_Triggered", "DISQUALIFIED")) else 0
+        # SINGLE "Bot qualified" definition used across all KPIs/sections: qualified on a
+        # call AND final phase2_outcome NOT collapsed to Not_Triggered / DISQUALIFIED.
+        qualified = 1 if (b(r["bot_qualified"]) and r["phase2_outcome"] not in ("Not_Triggered", "DISQUALIFIED")) else 0
+        vec[X["qual"]] += qualified
         vec[X["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
         po = r["phase2_outcome"]
         vec[X["vcS"]] += 1 if po == "Bot Qualified – VC scheduled" else 0
@@ -212,7 +212,7 @@ def main():
         vec[X["comp"]] += b(r["complaint_raised"])
         vec[X["qNoPa"]] += b(r["flag_bot_qual_pa_no_call"])
         vec[X["qDcd"]] += b(r["flag_bot_qual_dcd_done"])
-        vec[X["qSale"]] += 1 if (b(r["bot_qualified"]) and b(r["sale_flag"])) else 0
+        vec[X["qSale"]] += 1 if (qualified and b(r["sale_flag"])) else 0
         vec[X["qPaConn"]] += b(r["flag_bot_qual_pa_connected"])
         vec[X["connSale"]] += 1 if (b(r["bot_connected"]) and b(r["sale_flag"])) else 0
         # DCD/RTE (bot funnel): flag set AND (bot-qualified, OR bot-disqualified with an
@@ -222,7 +222,7 @@ def main():
         reason = r["disqualification_reason"]
         elig_dq = (reason in ("PSA review needed", "Vague answers")
                    or (reason is not None and reason.startswith("Reason unclear")))
-        is_q = b(r["bot_qualified"]) == 1
+        is_q = qualified == 1
         if b(r["dcd_flag"]):
             if is_q: vec[X["dcdQ"]] += 1
             elif elig_dq: vec[X["dcdDQ"]] += 1
@@ -261,14 +261,15 @@ def main():
         vec[LX["att"]] += b(r["bot_attempted"]); vec[LX["conn"]] += b(r["bot_connected"])
         vec[LX["conn0"]] += b(r["flag_connected_0_ans"])
         vec[LX["ans1"]] += b(r["flag_ans_1"]); vec[LX["ans6"]] += b(r["flag_ans_6"])
-        vec[LX["qual"]] += b(r["bot_qualified"])
+        _qualified = 1 if (b(r["bot_qualified"]) and r["phase2_outcome"] not in ("Not_Triggered", "DISQUALIFIED")) else 0
+        vec[LX["qual"]] += _qualified
         vec[LX["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
         po = r["phase2_outcome"]
         vec[LX["vcB"]] += 1 if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled") else 0
         vec[LX["vcDone"]] += b(r["vc_done_flag"])
         # DCD / RTE flag columns use the SAME bot-funnel basis as the KPI primary:
         # flag=1 AND (bot-qualified OR eligible-DQ). Raw total flag is NOT shown here.
-        _isq = b(r["bot_qualified"]) == 1
+        _isq = _qualified == 1
         _reason = r["disqualification_reason"]
         _elig = (_reason in ("PSA review needed", "Vague answers")
                  or (_reason is not None and _reason.startswith("Reason unclear")))
@@ -278,7 +279,7 @@ def main():
         vec[LX["attSum"]] += (r["total_call_attempts"] or 0)
         vec[LX["connSum"]] += (r["total_connected_calls"] or 0)
         # Bot Sale = bot-qualified AND sale (non-bot sale = sale - botSale, computed in UI).
-        vec[LX["botSale"]] += 1 if (b(r["bot_qualified"]) and b(r["sale_flag"])) else 0
+        vec[LX["botSale"]] += 1 if (_qualified and b(r["sale_flag"])) else 0
         # Bot DCD / Bot RTE = the VC-done edge case per segment: bot booked the VC, not done
         # (date-wise), and the PA moved the lead to DCD / RTE on/after the VC-booked date.
         _sd = [d for d in (r["vc_scheduled_date"], r["vc_alt_scheduled_date"]) if d is not None]
