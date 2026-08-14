@@ -211,15 +211,18 @@ def main():
         vec[X["qSale"]] += 1 if (b(r["bot_qualified"]) and b(r["sale_flag"])) else 0
         vec[X["qPaConn"]] += b(r["flag_bot_qual_pa_connected"])
         vec[X["connSale"]] += 1 if (b(r["bot_connected"]) and b(r["sale_flag"])) else 0
-        # Bot-attributable DCD/RTE: flag date AFTER the bot's verdict (bot_last_connected_date),
-        # only for bot-qualified or eligible-DQ (PSA review / reason unclear / vague answers).
-        verdict = r["bot_last_connected_date"]
-        elig_dq = r["disqualification_reason"] in ELIG_DQ
+        # DCD/RTE (bot funnel): flag set AND (bot-qualified, OR bot-disqualified with an
+        # eligible reason: PSA review needed / Reason unclear / Vague answers). No date gate.
+        # The lead is already at its latest registration cycle (the view dedups to the newest
+        # lead per email). "Other" (non-bot-funnel DCD/RTE) = total flag minus q+dq, in the UI.
+        reason = r["disqualification_reason"]
+        elig_dq = (reason in ("PSA review needed", "Vague answers")
+                   or (reason is not None and reason.startswith("Reason unclear")))
         is_q = b(r["bot_qualified"]) == 1
-        if b(r["dcd_flag"]) and r["dcd_moved_date"] is not None and verdict is not None and r["dcd_moved_date"] >= verdict:
+        if b(r["dcd_flag"]):
             if is_q: vec[X["dcdQ"]] += 1
             elif elig_dq: vec[X["dcdDQ"]] += 1
-        if b(r["rte_flag"]) and r["rte_moved_date"] is not None and verdict is not None and r["rte_moved_date"] >= verdict:
+        if b(r["rte_flag"]):
             if is_q: vec[X["rteQ"]] += 1
             elif elig_dq: vec[X["rteDQ"]] += 1
         # VC booked (flag/date basis): the bot scheduled a VC (standard or alt slot).
@@ -257,7 +260,7 @@ def main():
         vec[LX["qual"]] += b(r["bot_qualified"])
         vec[LX["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
         po = r["phase2_outcome"]
-        vec[LX["vcB"]] += 1 if (b(r["vc_scheduled_flag"]) or b(r["vc_alt_scheduled_flag"])) else 0
+        vec[LX["vcB"]] += 1 if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled") else 0
         vec[LX["vcDone"]] += b(r["vc_done_flag"])
         vec[LX["dcd"]] += b(r["dcd_flag"]); vec[LX["rte"]] += b(r["rte_flag"]); vec[LX["sale"]] += b(r["sale_flag"])
         vec[LX["attSum"]] += (r["total_call_attempts"] or 0)
