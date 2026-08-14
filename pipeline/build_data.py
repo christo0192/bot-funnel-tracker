@@ -34,8 +34,8 @@ OUT = ["Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled",
        "Bot Qualified – Lead denied slot", "Bot Qualified – Retrying",
        "Bot Qualified – Retries over", "Bot Qualified", "PA_Call_Booked",
        "Cold_MC_Directed", "Fallback_Phase1", "Not_Triggered"]
-TTC = ["a: 0–5 min", "b: 5–10 min", "c: 10–20 min", "d: 20–30 min", "e: 30–60 min",
-       "f: 1–3 hrs", "g: 3–6 hrs", "h: 6–12 hrs", "i: 12–24 hrs", "j: > 24 hrs",
+TTC = ["a: 0–5 min", "b: 5–15 min", "c: 15–30 min", "d: 30–60 min", "e: 1–12 hrs",
+       "f: 12–24 hrs", "g: 1–3 days", "h: > 3 days",
        "Not Connected"]
 BPA = ["a: Same Day", "b: 1–3 Days", "c: 3–7 Days", "d: 7–14 Days", "e: >14 Days",
        "z: No PA Call"]
