@@ -263,7 +263,15 @@ def main():
         po = r["phase2_outcome"]
         vec[LX["vcB"]] += 1 if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled") else 0
         vec[LX["vcDone"]] += b(r["vc_done_flag"])
-        vec[LX["dcd"]] += b(r["dcd_flag"]); vec[LX["rte"]] += b(r["rte_flag"]); vec[LX["sale"]] += b(r["sale_flag"])
+        # DCD / RTE flag columns use the SAME bot-funnel basis as the KPI primary:
+        # flag=1 AND (bot-qualified OR eligible-DQ). Raw total flag is NOT shown here.
+        _isq = b(r["bot_qualified"]) == 1
+        _reason = r["disqualification_reason"]
+        _elig = (_reason in ("PSA review needed", "Vague answers")
+                 or (_reason is not None and _reason.startswith("Reason unclear")))
+        vec[LX["dcd"]] += 1 if (b(r["dcd_flag"]) and (_isq or _elig)) else 0
+        vec[LX["rte"]] += 1 if (b(r["rte_flag"]) and (_isq or _elig)) else 0
+        vec[LX["sale"]] += b(r["sale_flag"])
         vec[LX["attSum"]] += (r["total_call_attempts"] or 0)
         vec[LX["connSum"]] += (r["total_connected_calls"] or 0)
         # Bot Sale = bot-qualified AND sale (non-bot sale = sale - botSale, computed in UI).
