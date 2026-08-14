@@ -103,7 +103,7 @@ def att_bucket(n):
 XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den",
          "retry","paOff","paAcc","paCall","paConn","dcd","vcDone","sale","wa","rte",
          "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
-         "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ"]
+         "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte"]
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -221,11 +221,19 @@ def main():
             if is_q: vec[X["rteQ"]] += 1
             elif elig_dq: vec[X["rteDQ"]] += 1
         # VC done: bot-attributable = the bot booked the VC and it's done
+        bot_booked_vc = po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled")
         if b(r["vc_done_flag"]):
-            if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled"):
+            if bot_booked_vc:
                 vec[X["vcDoneBot"]] += 1
             if is_q:
                 vec[X["vcDoneQ"]] += 1
+        # Edge case: bot booked the VC but PA never marked VC-done and instead moved
+        # the lead to DCD / RTE. Count so the VC-done KPI can footnote these leads.
+        elif bot_booked_vc:
+            if b(r["dcd_flag"]):
+                vec[X["vcEdgeDcd"]] += 1
+            elif b(r["rte_flag"]):
+                vec[X["vcEdgeRte"]] += 1
 
     def add_dim(vec, r):
         vec[LX["leads"]] += 1
