@@ -29,7 +29,11 @@ BUCKETS = ["Not Attempted", "Failed Calls Only", "Never Connected",
 ELIG_DQ = {"PSA review needed", "Reason unclear — review transcript", "Vague answers"}
 DQ = ["Non-tech", "Vague answers", "PSA review needed", "Salary <10L",
       "Not looking to switch or upskill", "Target outside tech/AI", "<5 YOE",
-      "Reason unclear — review transcript"]
+      "Reason unclear — review transcript",
+      # phase2_outcome-based disqualification categories (leads with no explicit reason)
+      "Not_Triggered", "DISQUALIFIED"]
+# phase2_outcome values that count as disqualified (in addition to an explicit reason)
+DQ_OUTCOMES = ("Not_Triggered", "DISQUALIFIED")
 OUT = ["Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled",
        "Bot Qualified – Lead denied slot", "Bot Qualified – Retrying",
        "Bot Qualified – Retries over", "Bot Qualified", "PA_Call_Booked",
@@ -145,6 +149,24 @@ DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]  # weekday of the bot's 
 def b(v):  # truthy int flag
     return 1 if v == 1 else 0
 
+def is_dq(r):  # Bot disqualified = explicit reason OR phase2_outcome Not_Triggered/DISQUALIFIED
+    return (r["disqualification_reason"] not in (None, "", "None")
+            or r["phase2_outcome"] in DQ_OUTCOMES)
+
+def dq_category(r):  # which DQ bar a disqualified lead falls under (reason first, else outcome)
+    dqr = r["disqualification_reason"]
+    if dqr not in (None, "", "None"):
+        # Compound reasons (multiple DQ reasons across calls) are joined with " | " by the
+        # view's STRING_AGG; bucket the lead under its FIRST reason.
+        first = dqr.split(" | ")[0].strip()
+        # Normalise the em-dash variant so it lands on the canonical bar.
+        if first.startswith("Reason unclear"):
+            return "Reason unclear — review transcript"
+        return first
+    if r["phase2_outcome"] in DQ_OUTCOMES:
+        return r["phase2_outcome"]
+    return None
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "data.json"))
@@ -199,7 +221,7 @@ def main():
         # dependent metric below (is_q, qSale) and the KPI/funnel via X.qual.
         qualified = b(r["bot_qualified"])
         vec[X["qual"]] += qualified
-        vec[X["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
+        vec[X["dq"]] += 1 if is_dq(r) else 0
         po = r["phase2_outcome"]
         vec[X["vcS"]] += 1 if po == "Bot Qualified – VC scheduled" else 0
         vec[X["vcA"]] += 1 if po == "Bot Qualified – VC alt scheduled" else 0
@@ -265,7 +287,7 @@ def main():
         vec[LX["ans1"]] += b(r["flag_ans_1"]); vec[LX["ans6"]] += b(r["flag_ans_6"])
         _qualified = b(r["bot_qualified"])
         vec[LX["qual"]] += _qualified
-        vec[LX["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
+        vec[LX["dq"]] += 1 if is_dq(r) else 0
         po = r["phase2_outcome"]
         vec[LX["vcB"]] += 1 if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled") else 0
         vec[LX["vcDone"]] += b(r["vc_done_flag"])
@@ -310,8 +332,8 @@ def main():
         add_dim(dims["dow"]["d"][i][cday.weekday()], r)
         # histograms
         if r["bot_bucket"] in LBL: hist["buk"][i][LBL[r["bot_bucket"]]] += 1
-        dqr = r["disqualification_reason"]
-        if dqr in DQI: hist["dq"][i][DQI[dqr]] += 1
+        dqc = dq_category(r)
+        if dqc in DQI: hist["dq"][i][DQI[dqc]] += 1
         po = r["phase2_outcome"]
         if po in OUTI: hist["out"][i][OUTI[po]] += 1
         if r["time_to_connect_bucket"] in TTCI: hist["ttc"][i][TTCI[r["time_to_connect_bucket"]]] += 1
@@ -332,7 +354,7 @@ def main():
                  "maxans", "tat", "qual", "dq", "vcb", "dcd", "rte", "sale"]
     leads_out = []
     for r in rows:
-        dq = 1 if r["disqualification_reason"] not in (None, "", "None") else 0
+        dq = 1 if is_dq(r) else 0
         leads_out.append([
             r["lead_email"] or "", r["pod"] or "", r["pa_name"] or "", r["lead_status"] or "", r["bot_bucket"] or "",
             day_off[r["lead_date"]], doff(r["bot_first_attempt_date"]), doff(r["bot_last_contacted_date"]),
