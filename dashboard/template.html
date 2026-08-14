@@ -380,7 +380,7 @@ function renderKPI(){
   const ix=idxRange(),t=sumDaily(ix),L=t[X.leads]||1;
   const el=document.getElementById('kpis');
   const att=t[X.att], conn=t[X.conn], conn0=t[X.conn0], connW=conn-conn0;
-  const q=t[X.qual], booked=t[X.vcS]+t[X.vcA];
+  const q=t[X.qual], booked=t[X.vcBookF];
   el.innerHTML=[
     kpiTile('Total leads',nf(t[X.leads]),`${fmtD(ix[0]!=null?DAYS[ix[0]]:0)} – ${fmtD(DAYS[ND-1])}`,sparkline(X.leads,false)),
     kpiTile('Attempted',nf(att),`${pf(att,L)} of leads`,sparkline(X.att,true)),
@@ -390,8 +390,8 @@ function renderKPI(){
     '<div class="kpibreak"></div>',
     kpiTile('Bot qualified',nf(q),`${pf(q,L)} of leads`,sparkline(X.qual,true)),
     kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],L)} of leads`,sparkline(X.dq,true)),
-    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified`,sparkline(X.vcS,false)),
-    kpiTile('VC done',nf(t[X.vcDoneBot]),`${pf(t[X.vcDoneBot],booked)} of bot-booked · ${nf(t[X.vcDone]-t[X.vcDoneBot])} other (${nf(t[X.vcDoneQ]-t[X.vcDoneBot])} bot-qual/PA-booked, ${nf(t[X.vcDone]-t[X.vcDoneQ])} non-bot)<div class="kpinote">+${nf(t[X.vcEdgeDcd]+t[X.vcEdgeRte])} leads had the VC booked by the bot but were marked DCD (${nf(t[X.vcEdgeDcd])}) or RTE (${nf(t[X.vcEdgeRte])}) by the PA — no VC-done status recorded.</div>`,sparkline(X.vcDone,false)),
+    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified · bot-scheduled VC`,sparkline(X.vcBookF,false)),
+    kpiTile('VC done',nf(t[X.vcDoneBot]),`${pf(t[X.vcDoneBot],booked)} of bot-booked VCs · ${nf(t[X.vcDone]-t[X.vcDoneBot])} other (VC done, not booked by the bot)<div class="kpinote">Date-wise: counts a VC done only when its done date ≥ the bot's VC-booked date. Edge: +${nf(t[X.vcEdgeDcd]+t[X.vcEdgeRte])} leads had the VC booked by the bot but the PA instead marked DCD (${nf(t[X.vcEdgeDcd])}) or RTE (${nf(t[X.vcEdgeRte])}) on/after the booked date, with no VC-done.</div>`,sparkline(X.vcDone,false)),
     kpiTile('DCD flag',nf(t[X.dcdQ]+t[X.dcdDQ]),`${pf(t[X.dcdQ]+t[X.dcdDQ],L)} of leads · ${nf(t[X.dcdQ])} qual, ${nf(t[X.dcdDQ])} disq, ${nf(t[X.dcd]-t[X.dcdQ]-t[X.dcdDQ])} other`,sparkline(X.dcd,false)),
     kpiTile('RTE flag',nf(t[X.rteQ]+t[X.rteDQ]),`${pf(t[X.rteQ]+t[X.rteDQ],L)} of leads · ${nf(t[X.rteQ])} qual, ${nf(t[X.rteDQ])} disq, ${nf(t[X.rte]-t[X.rteQ]-t[X.rteDQ])} other`,sparkline(X.rte,false)),
     kpiTile('Sale',nf(t[X.qSale]),`${pf(t[X.qSale],L)} of leads (bot funnel) · ${nf(t[X.sale]-t[X.qSale])} other (non-bot)`,sparkline(X.sale,false)),
@@ -404,7 +404,7 @@ function renderFunnel(){
   // main monotonic flow (Answered Q1 removed; VC done added after VC booked)
   const main=[
     ['Leads',t[X.leads]],['Attempted',t[X.att]],['Connected',t[X.conn]],
-    ['Bot qualified',t[X.qual]],['VC booked',t[X.vcS]+t[X.vcA]],['VC done',t[X.vcDone]],
+    ['Bot qualified',t[X.qual]],['VC booked',t[X.vcBookF]],['VC done',t[X.vcDoneBot]],
     ['Sale',t[X.sale]]];
   let leakIdx=1,leakDrop=-1;
   for(let i=1;i<main.length;i++){const dr=main[i-1][1]-main[i][1];if(dr>leakDrop){leakDrop=dr;leakIdx=i;}}

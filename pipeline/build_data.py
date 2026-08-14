@@ -103,7 +103,7 @@ def att_bucket(n):
 XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den",
          "retry","paOff","paAcc","paCall","paConn","dcd","vcDone","sale","wa","rte",
          "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
-         "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte"]
+         "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte","vcBookF"]
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -135,6 +135,7 @@ SELECT_COLS = [
     "lead_email","work_ex","utm_source","pa_name",
     "bot_first_attempt_date","bot_last_contacted_date","total_connected_calls",
     "bot_first_connect_date","bot_last_connected_date","dcd_moved_date","rte_moved_date",
+    "vc_scheduled_flag","vc_scheduled_date","vc_alt_scheduled_flag","vc_alt_scheduled_date","vc_done_date",
 ]
 
 DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]  # weekday of the bot's first call
@@ -220,19 +221,27 @@ def main():
         if b(r["rte_flag"]) and r["rte_moved_date"] is not None and verdict is not None and r["rte_moved_date"] >= verdict:
             if is_q: vec[X["rteQ"]] += 1
             elif elig_dq: vec[X["rteDQ"]] += 1
-        # VC done: bot-attributable = the bot booked the VC and it's done
-        bot_booked_vc = po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled")
-        if b(r["vc_done_flag"]):
-            if bot_booked_vc:
-                vec[X["vcDoneBot"]] += 1
-            if is_q:
-                vec[X["vcDoneQ"]] += 1
-        # Edge case: bot booked the VC but PA never marked VC-done and instead moved
-        # the lead to DCD / RTE. Count so the VC-done KPI can footnote these leads.
-        elif bot_booked_vc:
-            if b(r["dcd_flag"]):
+        # VC booked (flag/date basis): the bot scheduled a VC (standard or alt slot).
+        bot_booked_vc = b(r["vc_scheduled_flag"]) or b(r["vc_alt_scheduled_flag"])
+        if bot_booked_vc:
+            vec[X["vcBookF"]] += 1
+        # vc_booked_date = earliest of the two scheduled dates the bot secured.
+        sched_dates = [d for d in (r["vc_scheduled_date"], r["vc_alt_scheduled_date"]) if d is not None]
+        vc_booked_date = min(sched_dates) if sched_dates else None
+        vc_done_date = r["vc_done_date"]
+        # DATE-WISE VC done: the bot booked the VC and it was completed on/after that date.
+        done_bot = (vc_booked_date is not None and vc_done_date is not None
+                    and vc_done_date >= vc_booked_date)
+        if done_bot:
+            vec[X["vcDoneBot"]] += 1
+        if b(r["vc_done_flag"]) and is_q:
+            vec[X["vcDoneQ"]] += 1
+        # DATE-WISE edge case: bot booked the VC, it was NOT done (date-wise), and the PA
+        # instead moved the lead to DCD / RTE on/after the VC-booked date.
+        if (not done_bot) and bot_booked_vc and vc_booked_date is not None:
+            if r["dcd_moved_date"] is not None and r["dcd_moved_date"] >= vc_booked_date:
                 vec[X["vcEdgeDcd"]] += 1
-            elif b(r["rte_flag"]):
+            elif r["rte_moved_date"] is not None and r["rte_moved_date"] >= vc_booked_date:
                 vec[X["vcEdgeRte"]] += 1
 
     def add_dim(vec, r):
@@ -243,7 +252,7 @@ def main():
         vec[LX["qual"]] += b(r["bot_qualified"])
         vec[LX["dq"]] += 1 if (r["disqualification_reason"] not in (None, "", "None")) else 0
         po = r["phase2_outcome"]
-        vec[LX["vcB"]] += 1 if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled") else 0
+        vec[LX["vcB"]] += 1 if (b(r["vc_scheduled_flag"]) or b(r["vc_alt_scheduled_flag"])) else 0
         vec[LX["vcDone"]] += b(r["vc_done_flag"])
         vec[LX["dcd"]] += b(r["dcd_flag"]); vec[LX["rte"]] += b(r["rte_flag"]); vec[LX["sale"]] += b(r["sale_flag"])
         vec[LX["attSum"]] += (r["total_call_attempts"] or 0)
