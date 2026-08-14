@@ -846,10 +846,12 @@ function renderFunnelTable(){
   const rows=sumDim(FDIM,ix).map(r=>{const v=r.v,c=cur[r.name||'(blank)']||{dcd:0,rte:0};return{
     name:r.name||'(blank)',leads:v[LX.leads],att:v[LX.att],conn:v[LX.conn],aS:v[LX.attSum],cS:v[LX.connSum],
     ans0:v[LX.conn0],ans1:Math.max(0,v[LX.conn]-v[LX.conn0]),qual:v[LX.qual],dq:v[LX.dq],
-    vcb:v[LX.vcB],vcd:v[LX.vcDone],dcd:v[LX.dcd],curDcd:c.dcd,rte:v[LX.rte],curRte:c.rte,sale:v[LX.sale]};}).filter(r=>r.leads>0);
+    vcb:v[LX.vcB],vcd:v[LX.vcDone],dcd:v[LX.dcd],botDcd:v[LX.eDcd],curDcd:c.dcd,rte:v[LX.rte],botRte:v[LX.eRte],curRte:c.rte,
+    botSale:v[LX.botSale],nonBotSale:Math.max(0,v[LX.sale]-v[LX.botSale])};}).filter(r=>r.leads>0);
   const cols=[['name','Segment'],['leads','Leads'],['att','Leads attempted · avg'],['conn','Leads connected · avg'],
     ['ans1','Ans ≥1'],['qual','Bot Q'],['dq','Bot DQ'],['vcb','VC booked'],['vcd','VC done'],
-    ['dcd','DCD flag'],['curDcd','Cur DCD'],['rte','RTE flag'],['curRte','Cur RTE'],['sale','Sale']];
+    ['dcd','DCD flag'],['botDcd','Bot DCD'],['curDcd','Cur DCD'],['rte','RTE flag'],['botRte','Bot RTE'],['curRte','Cur RTE'],
+    ['botSale','Bot Sale'],['nonBotSale','Non-bot Sale']];
   rows.sort((a,b)=>{const k=FSORT.k;if(k==='name')return FSORT.dir*(''+a.name).localeCompare(''+b.name);return FSORT.dir*((a[k]||0)-(b[k]||0));});
   const mxL=Math.max(...rows.map(r=>r.leads),1);
   const th=cols.map(c=>`<th data-k="${c[0]}" class="${FSORT.k===c[0]?'on':''}">${c[1]}${FSORT.k===c[0]?(FSORT.dir<0?' ▾':' ▴'):''}</th>`).join('');
@@ -860,8 +862,9 @@ function renderFunnelTable(){
     <td class="num">${nf(r.conn)} <span class="pctv">${r.conn?(r.cS/r.conn).toFixed(1):'0'}</span></td>
     <td class="num">${nf(r.ans1)}</td><td class="num">${nf(r.qual)}</td><td class="num">${nf(r.dq)}</td>
     <td class="num">${nf(r.vcb)}</td><td class="num">${nf(r.vcd)}</td>
-    <td class="num">${nf(r.dcd)}</td><td class="num">${nf(r.curDcd)}</td>
-    <td class="num">${nf(r.rte)}</td><td class="num">${nf(r.curRte)}</td><td class="num">${nf(r.sale)}</td></tr>`).join('');
+    <td class="num">${nf(r.dcd)}</td><td class="num">${nf(r.botDcd)}</td><td class="num">${nf(r.curDcd)}</td>
+    <td class="num">${nf(r.rte)}</td><td class="num">${nf(r.botRte)}</td><td class="num">${nf(r.curRte)}</td>
+    <td class="num">${nf(r.botSale)}</td><td class="num">${nf(r.nonBotSale)}</td></tr>`).join('');
   const el=document.getElementById('funnelTable');
   el.innerHTML=`<thead><tr>${th}</tr></thead><tbody>${body}</tbody>`;
   el.querySelectorAll('th').forEach(h=>h.onclick=()=>{const k=h.dataset.k;

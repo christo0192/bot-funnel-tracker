@@ -108,7 +108,8 @@ XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
-LXCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcB","vcDone","dcd","rte","sale","attSum","connSum"]
+LXCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcB","vcDone","dcd","rte","sale","attSum","connSum",
+          "eDcd","eRte","botSale"]
 LX = {k: i for i, k in enumerate(LXCOLS)}
 LM = len(LXCOLS)
 
@@ -265,6 +266,17 @@ def main():
         vec[LX["dcd"]] += b(r["dcd_flag"]); vec[LX["rte"]] += b(r["rte_flag"]); vec[LX["sale"]] += b(r["sale_flag"])
         vec[LX["attSum"]] += (r["total_call_attempts"] or 0)
         vec[LX["connSum"]] += (r["total_connected_calls"] or 0)
+        # Bot Sale = bot-qualified AND sale (non-bot sale = sale - botSale, computed in UI).
+        vec[LX["botSale"]] += 1 if (b(r["bot_qualified"]) and b(r["sale_flag"])) else 0
+        # Bot DCD / Bot RTE = the VC-done edge case per segment: bot booked the VC, not done
+        # (date-wise), and the PA moved the lead to DCD / RTE on/after the VC-booked date.
+        _sd = [d for d in (r["vc_scheduled_date"], r["vc_alt_scheduled_date"]) if d is not None]
+        _vcb = min(_sd) if _sd else None
+        _booked = b(r["vc_scheduled_flag"]) or b(r["vc_alt_scheduled_flag"])
+        _done = _vcb is not None and r["vc_done_date"] is not None and r["vc_done_date"] >= _vcb
+        if (not _done) and _booked and _vcb is not None:
+            if r["dcd_moved_date"] is not None and r["dcd_moved_date"] >= _vcb: vec[LX["eDcd"]] += 1
+            elif r["rte_moved_date"] is not None and r["rte_moved_date"] >= _vcb: vec[LX["eRte"]] += 1
 
     LBL = {v: i for i, v in enumerate(BUCKETS)}
     DQI = {v: i for i, v in enumerate(DQ)}
