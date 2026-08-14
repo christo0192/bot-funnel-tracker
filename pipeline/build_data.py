@@ -25,6 +25,8 @@ VIEW = "ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise"
 # ---- vocabularies (order matters; indices are the histogram layout) ----
 BUCKETS = ["Not Attempted", "Failed Calls Only", "Never Connected",
            "Connected 0 Answers", "Connected With Answers"]
+# DQ reasons that still count toward the bot funnel for DCD/RTE attribution
+ELIG_DQ = {"PSA review needed", "Reason unclear — review transcript", "Vague answers"}
 DQ = ["Non-tech", "Vague answers", "PSA review needed", "Salary <10L",
       "Not looking to switch or upskill", "Target outside tech/AI", "<5 YOE",
       "Reason unclear — review transcript"]
@@ -100,7 +102,8 @@ def att_bucket(n):
 # ---- daily metric layout X (29) ----
 XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den",
          "retry","paOff","paAcc","paCall","paConn","dcd","vcDone","sale","wa","rte",
-         "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale"]
+         "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
+         "dcdQ","dcdDQ","rteQ","rteDQ"]
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -131,7 +134,7 @@ SELECT_COLS = [
     "flag_bot_qual_pa_no_call","flag_bot_qual_dcd_done","flag_bot_qual_pa_connected",
     "lead_email","work_ex","utm_source","pa_name",
     "bot_first_attempt_date","bot_last_contacted_date","total_connected_calls",
-    "bot_first_connect_date","bot_last_connected_date",
+    "bot_first_connect_date","bot_last_connected_date","dcd_moved_date","rte_moved_date",
 ]
 
 DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]  # weekday of the bot's first call
@@ -206,6 +209,17 @@ def main():
         vec[X["qSale"]] += 1 if (b(r["bot_qualified"]) and b(r["sale_flag"])) else 0
         vec[X["qPaConn"]] += b(r["flag_bot_qual_pa_connected"])
         vec[X["connSale"]] += 1 if (b(r["bot_connected"]) and b(r["sale_flag"])) else 0
+        # Bot-attributable DCD/RTE: flag date AFTER the bot's verdict (bot_last_connected_date),
+        # only for bot-qualified or eligible-DQ (PSA review / reason unclear / vague answers).
+        verdict = r["bot_last_connected_date"]
+        elig_dq = r["disqualification_reason"] in ELIG_DQ
+        is_q = b(r["bot_qualified"]) == 1
+        if b(r["dcd_flag"]) and r["dcd_moved_date"] is not None and verdict is not None and r["dcd_moved_date"] > verdict:
+            if is_q: vec[X["dcdQ"]] += 1
+            elif elig_dq: vec[X["dcdDQ"]] += 1
+        if b(r["rte_flag"]) and r["rte_moved_date"] is not None and verdict is not None and r["rte_moved_date"] > verdict:
+            if is_q: vec[X["rteQ"]] += 1
+            elif elig_dq: vec[X["rteDQ"]] += 1
 
     def add_dim(vec, r):
         vec[LX["leads"]] += 1

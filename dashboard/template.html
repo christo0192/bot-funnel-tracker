@@ -231,16 +231,16 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
   <div class="card"><div class="cardhead"><div><h3>Time to first connect</h3>
     <div class="hint">Lag from lead to the bot's first successful connect (of connected leads)</div></div></div><div id="ttcBars"></div></div>
 
-  <div class="sectionlabel">3 · Question &amp; answer-wise connects</div>
-  <div class="card"><div class="cardhead"><div><h3>Conversation depth — where calls drop</h3>
-    <div class="hint">Cumulative: of connected leads, how many reached at LEAST each step (≥1…≥6). Flags the biggest single drop.</div></div></div><div id="answerDepth"></div></div>
-
-  <div class="sectionlabel">4 · PA &amp; Pod-wise attempts and connects</div>
+  <div class="sectionlabel">3 · PA &amp; Pod-wise attempts and connects</div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Pod-wise attempts &amp; connects</h3>
-      <div class="hint">By lead volume · bar = connect coverage of leads · right = avg dials · connects per attempted lead</div></div></div><div id="podAtt"></div></div>
+      <div class="hint">By lead volume · bar = connect coverage · right = avg dials · connects per attempted lead</div></div>
+      <select id="podQ" class="qsel"><option value="">All leads</option><option value="qual">Bot qualified</option><option value="dq">Bot disqualified</option></select></div>
+      <div id="podAtt"></div></div>
     <div class="card"><div class="cardhead"><div><h3>PA-wise attempts &amp; connects</h3>
-      <div class="hint">By lead volume · bar = connect coverage of leads · right = avg dials · connects per attempted lead</div></div></div><div id="paAtt"></div></div>
+      <div class="hint">By lead volume · bar = connect coverage · right = avg dials · connects per attempted lead</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><select id="paPod" class="qsel"><option value="">All pods</option></select><select id="paQ" class="qsel"><option value="">All leads</option><option value="qual">Bot qualified</option><option value="dq">Bot disqualified</option></select></div></div>
+      <div id="paAtt"></div></div>
   </div>
 
   <div class="sectionlabel">Funnel by Pod &amp; PA</div>
@@ -252,14 +252,15 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
   </div>
   <div class="sectionlabel">Trends</div>
   <div class="grid c2b">
-    <div class="card"><div class="cardhead"><div><h3>Daily leads &amp; connect rate</h3></div></div><div id="trendLeads"></div></div>
-    <div class="card"><div class="cardhead"><div><h3>Qualification rate over time</h3><div class="hint">Bot Qualified as % of leads (7-day average)</div></div></div><div id="trendQual"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Daily connect rate</h3><div class="hint">Connected as % of leads</div></div></div><div id="trendLeads"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Qualification &amp; disqualification rate</h3><div class="hint">% of leads, 7-day average</div></div></div><div id="trendQual"></div></div>
   </div>
 
   <div class="sectionlabel">CRM pipeline stage</div>
   <div class="card">
     <div class="cardhead"><div><h3>Lead status distribution</h3>
-      <div class="hint">Actual CRM lead_status for the leads in range · click a header to sort</div></div></div>
+      <div class="hint">Actual CRM lead_status for the leads in range · click a header to sort</div></div>
+      <select id="crmQ" class="qsel"><option value="">All leads</option><option value="qual">Bot qualified</option><option value="dq">Bot disqualified</option></select></div>
     <div class="scroll"><table id="crmTable"></table></div>
   </div>
 
@@ -390,8 +391,8 @@ function renderKPI(){
     kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],L)} of leads`,sparkline(X.dq,true)),
     kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified`,sparkline(X.vcS,false)),
     kpiTile('VC done',nf(t[X.vcDone]),`${pf(t[X.vcDone],booked)} of booked`,sparkline(X.vcDone,false)),
-    kpiTile('DCD',nf(t[X.dcd]),`${pf(t[X.dcd],L)} of leads`,sparkline(X.dcd,false)),
-    kpiTile('RTE',nf(t[X.rte]),`${pf(t[X.rte],L)} of leads`,sparkline(X.rte,false)),
+    kpiTile('DCD flag',nf(t[X.dcdQ]+t[X.dcdDQ]),`${pf(t[X.dcdQ]+t[X.dcdDQ],L)} of leads · ${nf(t[X.dcdQ])} qual, ${nf(t[X.dcdDQ])} disq, ${nf(t[X.dcd]-t[X.dcdQ]-t[X.dcdDQ])} other`,sparkline(X.dcd,false)),
+    kpiTile('RTE flag',nf(t[X.rteQ]+t[X.rteDQ]),`${pf(t[X.rteQ]+t[X.rteDQ],L)} of leads · ${nf(t[X.rteQ])} qual, ${nf(t[X.rteDQ])} disq, ${nf(t[X.rte]-t[X.rteQ]-t[X.rteDQ])} other`,sparkline(X.rte,false)),
     kpiTile('Sale',nf(t[X.sale]),`${pf(t[X.sale],L)} of leads · ${pf(t[X.qSale],q)} of qual`,sparkline(X.sale,false)),
   ].join('');
 }
@@ -501,13 +502,17 @@ function lineChart(el,series,opt){
 }
 function renderTrends(){
   const ix=idxRange();
+  // connect rate as % of leads
+  const crate=ix.map(i=>DAILY[i][X.leads]?DAILY[i][X.conn]/DAILY[i][X.leads]:0);
   lineChart(document.getElementById('trendLeads'),
-    [{name:'Leads',data:ix.map(i=>DAILY[i][X.leads]),color:cssv('--s1'),area:true}]);
-  // 7d moving avg qual rate
-  const rate=ix.map(i=>DAILY[i][X.leads]?DAILY[i][X.qual]/DAILY[i][X.leads]:0);
-  const ma=rate.map((_,k)=>{const a=Math.max(0,k-6);const seg=rate.slice(a,k+1);return seg.reduce((s,v)=>s+v,0)/seg.length;});
-  lineChart(document.getElementById('trendQual'),
-    [{name:'Qual rate',data:ma,color:cssv('--s3'),area:true,fill:'color-mix(in srgb,var(--s3) 14%,transparent)'}],{rate:true});
+    [{name:'Connect rate',data:crate,color:cssv('--s1'),area:true}],{rate:true});
+  // 7d moving avg qualification & disqualification rate (% of leads)
+  const ma=fn=>{const rate=ix.map(fn);return rate.map((_,k)=>{const a=Math.max(0,k-6),seg=rate.slice(a,k+1);return seg.reduce((s,v)=>s+v,0)/seg.length;});};
+  const q=ma(i=>DAILY[i][X.leads]?DAILY[i][X.qual]/DAILY[i][X.leads]:0);
+  const d=ma(i=>DAILY[i][X.leads]?DAILY[i][X.dq]/DAILY[i][X.leads]:0);
+  const tq=document.getElementById('trendQual');
+  lineChart(tq,[{name:'Qualified',data:q,color:cssv('--good')},{name:'Disqualified',data:d,color:cssv('--crit')}],{rate:true});
+  tq.insertAdjacentHTML('beforeend',`<div class="legend"><span><i style="background:${cssv('--good')}"></i>Qualified %</span><span><i style="background:${cssv('--crit')}"></i>Disqualified %</span></div>`);
 }
 
 /* ---------- horizontal bars ---------- */
@@ -632,16 +637,19 @@ function renderQualDrivers(){
   const rows=sumDim(QDIM,ix).map(r=>({name:r.name,leads:r.v[LX.leads],qn:r.v[LX.qual],dn:r.v[LX.dq]}))
     .filter(r=>r.leads>=20).sort((a,b)=>b.leads-a.leads).slice(0,12);
   const gc=cssv('--good'), rc=cssv('--crit'), nc=cssv('--surf-2');
+  let sq=0,sd=0,sl=0;
   document.getElementById('qualDrivers').innerHTML='<div class="blist">'+rows.map(r=>{
-    const L=r.leads||1, qp=r.qn/L*100, dp=r.dn/L*100, np=Math.max(0,100-qp-dp);
-    return `<div class="qrow qrow3" data-tip="${r.name}|${nf(r.leads)} leads|Qualified ${qp.toFixed(1)}% (${nf(r.qn)})|Disqualified ${dp.toFixed(1)}% (${nf(r.dn)})|Neither ${np.toFixed(1)}%">
+    const L=r.leads||1, nn=Math.max(0,r.leads-r.qn-r.dn), qp=r.qn/L*100, dp=r.dn/L*100, np=nn/L*100;
+    sq+=r.qn;sd+=r.dn;sl+=r.leads;
+    return `<div class="qrow qrow3" data-tip="${r.name}|${nf(r.leads)} leads|Qualified ${qp.toFixed(1)}% (${nf(r.qn)})|Disqualified ${dp.toFixed(1)}% (${nf(r.dn)})|Neither — no bot verdict ${np.toFixed(1)}% (${nf(nn)})">
       <span class="bn" title="${r.name}">${r.name}</span>
       <div class="sbar">
         <span class="sseg" style="width:${qp.toFixed(2)}%;background:${gc}"></span>
         <span class="sseg" style="width:${dp.toFixed(2)}%;background:${rc}"></span>
         <span class="sseg" style="width:${np.toFixed(2)}%;background:${nc}"></span></div>
       <span class="bv num">${nf(r.leads)} <span class="pctv">(${qp.toFixed(1)}%)</span></span></div>`;}).join('')+'</div>'+
-    `<div class="legend"><span><i style="background:${gc}"></i>Qualified %</span><span><i style="background:${rc}"></i>Disqualified %</span><span><i style="background:${nc}"></i>Neither</span></div>`;
+    `<div class="legend"><span><i style="background:${gc}"></i>Qualified (${nf(sq)})</span><span><i style="background:${rc}"></i>Disqualified (${nf(sd)})</span><span><i style="background:${nc}"></i>Neither (${nf(sl-sq-sd)})</span></div>`+
+    `<div class="hint" style="margin-top:6px"><b>Neither</b> = the bot reached no verdict — lead was not attempted, never connected, or connected without a qualifying/disqualifying outcome (e.g. Not_Triggered / incomplete).</div>`;
   bindTip('qualDrivers','.qrow');
 }
 function renderDOW(){
@@ -685,14 +693,21 @@ function renderAnsDist(){
   const pairs=labels.map((l,i)=>[l,ans[i]]).filter(p=>p[1]>0);
   barsInto('ansDist',pairs,{color:(i)=>pairs[i][0]==='0 ans'?cssv('--ink-3'):cssv('--accent')});
 }
-function renderAttConn(dim,elId){
-  const ix=idxRange();
-  const rows=sumDim(dim,ix).map(r=>({name:r.name,leads:r.v[LX.leads],att:r.v[LX.att],conn:r.v[LX.conn],
-      attSum:r.v[LX.attSum],connSum:r.v[LX.connSum]}))
-    .filter(r=>r.leads>=20).sort((a,b)=>b.leads-a.leads).slice(0,12);
+function renderAttConn(segCol,elId,opt){
+  opt=opt||{};
+  const ix=idxRange(), inRange=new Set(ix.map(i=>DAYS[i])), map={};
+  LEADS.forEach(r=>{
+    if(!inRange.has(r[LC.date]))return;
+    if(opt.qual==='qual'&&r[LC.qual]!==1)return;
+    if(opt.qual==='dq'&&r[LC.dq]!==1)return;
+    if(opt.pod&&(r[LC.pod]||'(blank)')!==opt.pod)return;
+    const seg=r[segCol]||'(blank)', m=map[seg]||(map[seg]={leads:0,att:0,conn:0,attSum:0,connSum:0});
+    m.leads++; const a=r[LC.att]||0,c=r[LC.conn]||0; if(a>0)m.att++; if(c>0)m.conn++; m.attSum+=a; m.connSum+=c;
+  });
+  const rows=Object.entries(map).map(([name,m])=>({name,...m})).filter(r=>r.leads>=20).sort((a,b)=>b.leads-a.leads).slice(0,12);
   const cc=cssv('--good'), ac=cssv('--warn'), nc=cssv('--surf-2');
   const header=`<div class="arow ahead"><span class="bn">Segment · leads</span><span>Connect coverage of leads</span><span class="av">dials · conn</span></div>`;
-  document.getElementById(elId).innerHTML='<div class="blist">'+header+rows.map(r=>{
+  document.getElementById(elId).innerHTML='<div class="blist">'+header+(rows.length?rows.map(r=>{
     const L=r.leads||1, connP=r.conn/L*100, attNC=Math.max(0,r.att-r.conn)/L*100, notAtt=Math.max(0,L-r.att)/L*100;
     const avgA=r.att?r.attSum/r.att:0, avgC=r.att?r.connSum/r.att:0;
     return `<div class="arow" data-tip="${r.name}|${nf(r.leads)} leads|Attempted ${nf(r.att)} (${pf(r.att,L)})|Connected ${nf(r.conn)} (${pf(r.conn,L)})|Avg dials / attempted lead ${avgA.toFixed(2)}|Avg connects / attempted lead ${avgC.toFixed(2)}">
@@ -701,7 +716,7 @@ function renderAttConn(dim,elId){
         <span class="sseg" style="width:${connP.toFixed(2)}%;background:${cc}"></span>
         <span class="sseg" style="width:${attNC.toFixed(2)}%;background:${ac}"></span>
         <span class="sseg" style="width:${notAtt.toFixed(2)}%;background:${nc}"></span></div>
-      <span class="av"><b>${avgA.toFixed(1)}</b> · <b>${avgC.toFixed(1)}</b></span></div>`;}).join('')+'</div>'+
+      <span class="av"><b>${avgA.toFixed(1)}</b> · <b>${avgC.toFixed(1)}</b></span></div>`;}).join(''):'<div class="hint" style="padding:8px 0">No segments with ≥20 leads for this filter.</div>')+'</div>'+
     `<div class="legend"><span><i style="background:${cc}"></i>Connected</span><span><i style="background:${ac}"></i>Attempted, no connect</span><span><i style="background:${nc}"></i>Not attempted</span><span class="pctv">right = avg dials · avg connects per attempted lead</span></div>`;
   bindTip(elId,'.arow');
 }
@@ -719,6 +734,11 @@ function populateFilters(){
   fill('qPod',uniq(LC.pod)); fill('qPa',uniq(LC.pa)); fill('qStatus',uniq(LC.status));
   fill('qBucket',M.buckets.filter(b=>LEADS.some(r=>r[LC.bucket]===b)));
   fill('qTat',M.ttc.filter(t=>LEADS.some(r=>r[LC.tat]===t)));
+  fill('paPod',uniq(LC.pod));
+  const reAtt=()=>{renderAttConn(LC.pod,'podAtt',{qual:document.getElementById('podQ').value});
+    renderAttConn(LC.pa,'paAtt',{qual:document.getElementById('paQ').value,pod:document.getElementById('paPod').value});};
+  ['podQ','paQ','paPod'].forEach(id=>document.getElementById(id).onchange=reAtt);
+  document.getElementById('crmQ').onchange=renderCRM;
 }
 function filteredLeads(){
   const e=qval('qEmail'),pod=gval('qPod'),pa=gval('qPa'),st=gval('qStatus'),bk=gval('qBucket'),
@@ -826,7 +846,7 @@ function renderFunnelTable(){
     name:r.name||'(blank)',leads:v[LX.leads],att:v[LX.att],conn:v[LX.conn],aS:v[LX.attSum],cS:v[LX.connSum],
     ans0:v[LX.conn0],ans1:Math.max(0,v[LX.conn]-v[LX.conn0]),qual:v[LX.qual],dq:v[LX.dq],
     vcb:v[LX.vcB],vcd:v[LX.vcDone],dcd:v[LX.dcd],curDcd:c.dcd,rte:v[LX.rte],curRte:c.rte,sale:v[LX.sale]};}).filter(r=>r.leads>0);
-  const cols=[['name','Segment'],['leads','Leads'],['att','Leads attempted · avg'],['conn','Leads connected · avg'],['ans0','Ans 0'],
+  const cols=[['name','Segment'],['leads','Leads'],['att','Leads attempted · avg'],['conn','Leads connected · avg'],
     ['ans1','Ans ≥1'],['qual','Bot Q'],['dq','Bot DQ'],['vcb','VC booked'],['vcd','VC done'],
     ['dcd','DCD flag'],['curDcd','Cur DCD'],['rte','RTE flag'],['curRte','Cur RTE'],['sale','Sale']];
   rows.sort((a,b)=>{const k=FSORT.k;if(k==='name')return FSORT.dir*(''+a.name).localeCompare(''+b.name);return FSORT.dir*((a[k]||0)-(b[k]||0));});
@@ -837,7 +857,6 @@ function renderFunnelTable(){
     <td class="num">${nf(r.leads)}<span class="mini" style="width:${(r.leads/mxL*28).toFixed(0)}px"></span></td>
     <td class="num">${nf(r.att)} <span class="pctv">${r.att?(r.aS/r.att).toFixed(1):'0'}</span></td>
     <td class="num">${nf(r.conn)} <span class="pctv">${r.conn?(r.cS/r.conn).toFixed(1):'0'}</span></td>
-    <td class="num">${nf(r.ans0)}</td>
     <td class="num">${nf(r.ans1)}</td><td class="num">${nf(r.qual)}</td><td class="num">${nf(r.dq)}</td>
     <td class="num">${nf(r.vcb)}</td><td class="num">${nf(r.vcd)}</td>
     <td class="num">${nf(r.dcd)}</td><td class="num">${nf(r.curDcd)}</td>
@@ -851,22 +870,25 @@ function renderFunnelTable(){
 /* ---------- CRM: actual lead_status distribution (table) ---------- */
 let CRMSORT={k:'n',dir:-1};
 function renderCRM(){
-  const ix=idxRange(), inRange=new Set(ix.map(i=>DAYS[i]));
+  const ix=idxRange(), inRange=new Set(ix.map(i=>DAYS[i])), fq=document.getElementById('crmQ').value;
   const norm=s=>{s=(s||'(blank)').trim();return s==='Discovery_Call_Done'?'Discovery call done':s;};
-  const counts={};
-  LEADS.forEach(r=>{ if(inRange.has(r[LC.date])){const s=norm(r[LC.status]); counts[s]=(counts[s]||0)+1;} });
-  let rows=Object.entries(counts).map(([name,n])=>({name,n}));
+  const agg={};
+  LEADS.forEach(r=>{ if(!inRange.has(r[LC.date]))return;
+    if(fq==='qual'&&r[LC.qual]!==1)return; if(fq==='dq'&&r[LC.dq]!==1)return;
+    const s=norm(r[LC.status]), a=agg[s]||(agg[s]={n:0,q:0,dq:0});
+    a.n++; if(r[LC.qual]===1)a.q++; if(r[LC.dq]===1)a.dq++; });
+  let rows=Object.entries(agg).map(([name,a])=>({name,n:a.n,q:a.q,dq:a.dq}));
   const tot=rows.reduce((s,r)=>s+r.n,0)||1;
-  rows.sort((a,b)=>CRMSORT.k==='name'?CRMSORT.dir*a.name.localeCompare(b.name):CRMSORT.dir*(a.n-b.n));
+  rows.sort((a,b)=>CRMSORT.k==='name'?CRMSORT.dir*a.name.localeCompare(b.name):CRMSORT.dir*((a[CRMSORT.k]||0)-(b[CRMSORT.k]||0)));
   const mx=Math.max(...rows.map(r=>r.n),1);
-  const cols=[['name','Lead status'],['n','Leads'],['pct','% of leads']];
+  const cols=[['name','Lead status'],['n','Leads'],['pct','% of leads'],['q','Bot Q'],['dq','Bot DQ']];
   const th=cols.map(c=>`<th data-k="${c[0]}" class="${CRMSORT.k===c[0]?'on':''}">${c[1]}${CRMSORT.k===c[0]?(CRMSORT.dir<0?' ▾':' ▴'):''}</th>`).join('');
   const body=rows.map(r=>`<tr>
     <td>${esc(r.name)}</td>
     <td class="num">${nf(r.n)}<span class="mini" style="width:${(r.n/mx*40).toFixed(0)}px"></span></td>
-    <td class="num">${pf(r.n,tot)}</td></tr>`).join('');
+    <td class="num">${pf(r.n,tot)}</td><td class="num">${nf(r.q)}</td><td class="num">${nf(r.dq)}</td></tr>`).join('');
   const el=document.getElementById('crmTable');
-  el.innerHTML=`<thead><tr>${th}</tr></thead><tbody>${body}</tbody><tfoot><tr><td>Total</td><td class="num">${nf(tot)}</td><td class="num">100%</td></tr></tfoot>`;
+  el.innerHTML=`<thead><tr>${th}</tr></thead><tbody>${body}</tbody><tfoot><tr><td>Total</td><td class="num">${nf(tot)}</td><td class="num">100%</td><td class="num">${nf(rows.reduce((s,r)=>s+r.q,0))}</td><td class="num">${nf(rows.reduce((s,r)=>s+r.dq,0))}</td></tr></tfoot>`;
   el.querySelectorAll('th').forEach(h=>h.onclick=()=>{const k=h.dataset.k==='pct'?'n':h.dataset.k;
     if(CRMSORT.k===k)CRMSORT.dir*=-1;else{CRMSORT.k=k;CRMSORT.dir=k==='name'?1:-1;}renderCRM();});
 }
@@ -877,8 +899,9 @@ function renderAll(){
   const label = CUSTOM ? `${fmtD(CUSTOM.a)} – ${fmtD(CUSTOM.b)}` : (RANGE?`last ${RANGE} days`:'all time');
   document.getElementById('rangeTxt').textContent=`Showing ${ix.length} active days (${label}) · ${nf(sumDaily(ix)[X.leads])} leads.`;
   renderKPI();renderFdimSeg();renderFunnelTable();
-  renderQualOutcome();renderAnswerDepth();renderQdimSeg();renderQualDrivers();
-  renderAttConn('owner','podAtt');renderAttConn('pa','paAtt');
+  renderQualOutcome();renderQdimSeg();renderQualDrivers();
+  renderAttConn(LC.pod,'podAtt',{qual:document.getElementById('podQ').value});
+  renderAttConn(LC.pa,'paAtt',{qual:document.getElementById('paQ').value,pod:document.getElementById('paPod').value});
   renderTrends();renderMixes();renderCRM();
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
