@@ -29,11 +29,7 @@ BUCKETS = ["Not Attempted", "Failed Calls Only", "Never Connected",
 ELIG_DQ = {"PSA review needed", "Reason unclear — review transcript", "Vague answers"}
 DQ = ["Non-tech", "Vague answers", "PSA review needed", "Salary <10L",
       "Not looking to switch or upskill", "Target outside tech/AI", "<5 YOE",
-      "Reason unclear — review transcript",
-      # phase2_outcome-based disqualification categories (leads with no explicit reason)
-      "Not_Triggered", "DISQUALIFIED"]
-# phase2_outcome values that count as disqualified (in addition to an explicit reason)
-DQ_OUTCOMES = ("Not_Triggered", "DISQUALIFIED")
+      "Reason unclear — review transcript"]
 OUT = ["Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled",
        "Bot Qualified – Lead denied slot", "Bot Qualified – Retrying",
        "Bot Qualified – Retries over", "Bot Qualified", "PA_Call_Booked",
@@ -108,7 +104,7 @@ XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den
          "retry","paOff","paAcc","paCall","paConn","dcd","vcDone","sale","wa","rte",
          "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
          "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte","vcBookF",
-         "vcBookNT","vcBookDQ"]
+         "vcBookNT","vcBookDQ","dqCWA","failNC"]
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -149,22 +145,18 @@ DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]  # weekday of the bot's 
 def b(v):  # truthy int flag
     return 1 if v == 1 else 0
 
-def is_dq(r):  # Bot disqualified = explicit reason OR phase2_outcome Not_Triggered/DISQUALIFIED
-    return (r["disqualification_reason"] not in (None, "", "None")
-            or r["phase2_outcome"] in DQ_OUTCOMES)
+def is_dq(r):  # Bot disqualified (reasoning section / funnel) = has an explicit reason
+    return r["disqualification_reason"] not in (None, "", "None")
 
-def dq_category(r):  # which DQ bar a disqualified lead falls under (reason first, else outcome)
+def dq_category(r):  # which DQ bar a disqualified lead falls under
     dqr = r["disqualification_reason"]
     if dqr not in (None, "", "None"):
         # Compound reasons (multiple DQ reasons across calls) are joined with " | " by the
-        # view's STRING_AGG; bucket the lead under its FIRST reason.
+        # view's STRING_AGG; bucket the lead under its FIRST reason, normalising the em-dash.
         first = dqr.split(" | ")[0].strip()
-        # Normalise the em-dash variant so it lands on the canonical bar.
         if first.startswith("Reason unclear"):
             return "Reason unclear — review transcript"
         return first
-    if r["phase2_outcome"] in DQ_OUTCOMES:
-        return r["phase2_outcome"]
     return None
 
 def main():
@@ -221,6 +213,14 @@ def main():
         # dependent metric below (is_q, qSale) and the KPI/funnel via X.qual.
         qualified = b(r["bot_qualified"])
         vec[X["qual"]] += qualified
+        # Bucket-based KPI tiles (team definition):
+        #   Bot disqualified KPI = Connected-With-Answers, NOT qualified, and NOT Not_Triggered.
+        #   Failed/Never-connected KPI = those two buckets only (name also says "not triggered").
+        bkt = r["bot_bucket"]
+        if bkt == "Connected With Answers" and not qualified and r["phase2_outcome"] != "Not_Triggered":
+            vec[X["dqCWA"]] += 1
+        if bkt in ("Failed Calls Only", "Never Connected"):
+            vec[X["failNC"]] += 1
         vec[X["dq"]] += 1 if is_dq(r) else 0
         po = r["phase2_outcome"]
         vec[X["vcS"]] += 1 if po == "Bot Qualified – VC scheduled" else 0
