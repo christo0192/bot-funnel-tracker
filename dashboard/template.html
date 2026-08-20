@@ -235,11 +235,11 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
   <div class="sectionlabel">3 · PA &amp; Pod-wise attempts and connects</div>
   <div class="grid c2b">
     <div class="card"><div class="cardhead"><div><h3>Pod-wise attempts &amp; connects</h3>
-      <div class="hint">By lead volume · bar = connect coverage · right = avg dials · connects per attempted lead</div></div>
+      <div class="hint">Real PA (human) calls · bar = connect coverage (≥120s) · right = avg dials · connects per dialed lead</div></div>
       <select id="podQ" class="qsel"><option value="">All leads</option><option value="qual">Bot qualified</option><option value="dq">Bot disqualified</option></select></div>
       <div id="podAtt"></div></div>
     <div class="card"><div class="cardhead"><div><h3>PA-wise attempts &amp; connects</h3>
-      <div class="hint">By lead volume · bar = connect coverage · right = avg dials · connects per attempted lead</div></div>
+      <div class="hint">Real PA (human) calls · bar = connect coverage (≥120s) · right = avg dials · connects per dialed lead</div></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap"><select id="paPod" class="qsel"><option value="">All pods</option></select><select id="paQ" class="qsel"><option value="">All leads</option><option value="qual">Bot qualified</option><option value="dq">Bot disqualified</option></select></div></div>
       <div id="paAtt"></div></div>
   </div>
@@ -703,23 +703,23 @@ function renderAttConn(segCol,elId,opt){
     if(opt.qual==='qual'&&r[LC.qual]!==1)return;
     if(opt.qual==='dq'&&r[LC.dq]!==1)return;
     if(opt.pod&&(r[LC.pod]||'(blank)')!==opt.pod)return;
-    const seg=r[segCol]||'(blank)', m=map[seg]||(map[seg]={leads:0,att:0,conn:0,attSum:0,connSum:0});
-    m.leads++; const a=r[LC.att]||0,c=r[LC.conn]||0; if(a>0)m.att++; if(c>0)m.conn++; m.attSum+=a; m.connSum+=c;
+    const seg=r[segCol]||'(blank)', m=map[seg]||(map[seg]={leads:0,att:0,conn:0,attSum:0,connSum:0,talkSum:0});
+    m.leads++; const a=r[LC.paDials]||0,c=r[LC.paConn]||0; if(a>0)m.att++; if(c>0)m.conn++; m.attSum+=a; m.connSum+=c; m.talkSum+=(r[LC.paTalk]||0);
   });
   const rows=Object.entries(map).map(([name,m])=>({name,...m})).filter(r=>r.leads>=20).sort((a,b)=>b.leads-a.leads).slice(0,12);
   const cc=cssv('--good'), ac=cssv('--warn'), nc=cssv('--surf-2');
   const header=`<div class="arow ahead"><span class="bn">Segment · leads</span><span>Connect coverage of leads</span><span class="av">dials · conn</span></div>`;
   document.getElementById(elId).innerHTML='<div class="blist">'+header+(rows.length?rows.map(r=>{
     const L=r.leads||1, connP=r.conn/L*100, attNC=Math.max(0,r.att-r.conn)/L*100, notAtt=Math.max(0,L-r.att)/L*100;
-    const avgA=r.att?r.attSum/r.att:0, avgC=r.att?r.connSum/r.att:0;
-    return `<div class="arow" data-tip="${r.name}|${nf(r.leads)} leads|Attempted ${nf(r.att)} (${pf(r.att,L)})|Connected ${nf(r.conn)} (${pf(r.conn,L)})|Avg dials / attempted lead ${avgA.toFixed(2)}|Avg connects / attempted lead ${avgC.toFixed(2)}">
+    const avgA=r.att?r.attSum/r.att:0, avgC=r.att?r.connSum/r.att:0, avgTalk=r.connSum?r.talkSum/r.connSum:0;
+    return `<div class="arow" data-tip="${r.name}|${nf(r.leads)} leads|PA dialed ${nf(r.att)} leads (${pf(r.att,L)})|PA connected ${nf(r.conn)} leads (${pf(r.conn,L)})|Total dials ${nf(r.attSum)} · connects ${nf(r.connSum)}|Avg dials / dialed lead ${avgA.toFixed(2)}|Avg connects / dialed lead ${avgC.toFixed(2)}|Avg talk / connect ${avgTalk.toFixed(1)} min">
       <span class="bn" title="${r.name}">${r.name||'(blank)'} <span class="pctv">· ${nf(r.leads)}</span></span>
       <div class="sbar">
         <span class="sseg" style="width:${connP.toFixed(2)}%;background:${cc}"></span>
         <span class="sseg" style="width:${attNC.toFixed(2)}%;background:${ac}"></span>
         <span class="sseg" style="width:${notAtt.toFixed(2)}%;background:${nc}"></span></div>
       <span class="av"><b>${avgA.toFixed(1)}</b> · <b>${avgC.toFixed(1)}</b></span></div>`;}).join(''):'<div class="hint" style="padding:8px 0">No segments with ≥20 leads for this filter.</div>')+'</div>'+
-    `<div class="legend"><span><i style="background:${cc}"></i>Connected</span><span><i style="background:${ac}"></i>Attempted, no connect</span><span><i style="background:${nc}"></i>Not attempted</span><span class="pctv">right = avg dials · avg connects per attempted lead</span></div>`;
+    `<div class="legend"><span><i style="background:${cc}"></i>Connected (≥120s)</span><span><i style="background:${ac}"></i>Dialed, no connect</span><span><i style="background:${nc}"></i>Not dialed</span><span class="pctv">right = avg dials · avg connects per dialed lead</span></div>`;
   bindTip(elId,'.arow');
 }
 
