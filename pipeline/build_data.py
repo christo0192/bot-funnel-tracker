@@ -21,6 +21,12 @@ from collections import defaultdict
 
 PROJECT = "ik-marketing-data"
 VIEW = "ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise"
+# Contacts is the source of the status-change dates. The leadwise view's own rte_moved_date
+# only matches '%ready to enroll%' / '%interested-ready%', but L10X's RTE_Flag ALSO fires on
+# '%interested - follow-up%' — so ~387/591 RTE-flagged leads had no date. We recompute the RTE
+# date here with the SAME status set the flag uses, recovering a date for all 591. (A matching
+# one-line fix to the view's Step 4 is pending with the data team; once live this join can go.)
+CONTACTS = "ik-marketing-data.Sales_Dashboard.contacts"
 
 # ---- vocabularies (order matters; indices are the histogram layout) ----
 BUCKETS = ["Not Attempted", "Failed Calls Only", "Never Connected",
@@ -126,8 +132,13 @@ DIMS_SRC = {
 
 SELECT_COLS = [
     "lead_date","pod","city","channel","webinar_type","role_domain",
-    "work_ex_category","lead_status","bot_bucket","disqualification_reason",
-    "phase2_outcome","time_to_connect_bucket","bot_connect_to_pa_bucket",
+    "work_ex_category","lead_status","bot_bucket",
+    # Data team split these into _peak (best outcome ever reached) and _latest (current/final
+    # status) on 2026-09-08. We use _peak (user decision 2026-09-11): outcome/DQ is the bot's
+    # peak-moment verdict. VC booked is NO LONGER read from this text — it comes from the
+    # verified-slot flags below, so the peak/latest choice does not affect VC.
+    "disqualification_reason_peak AS disqualification_reason",
+    "phase2_outcome_peak AS phase2_outcome","time_to_connect_bucket","bot_connect_to_pa_bucket",
     "total_call_attempts","best_questions_answered",
     "bot_attempted","bot_connected","bot_qualified",
     "flag_connected_0_ans","flag_ans_1","flag_ans_6",
@@ -168,7 +179,29 @@ def main():
 
     from google.cloud import bigquery
     client = bigquery.Client(project=PROJECT)
-    sql = f"SELECT {', '.join(SELECT_COLS)} FROM `{VIEW}` WHERE lead_date IS NOT NULL"
+    def _q(col):  # prefix view columns with the `v` alias, preserving any " AS " rename
+        if " AS " in col:
+            src, alias = col.split(" AS ")
+            return f"v.{src.strip()} AS {alias.strip()}"
+        return f"v.{col}"
+    cols_sql = ", ".join(_q(c) for c in SELECT_COLS)
+    sql = f"""
+    SELECT {cols_sql},
+           rfix.rte_moved_date_fixed
+    FROM `{VIEW}` v
+    LEFT JOIN (
+      SELECT LOWER(contact_id) AS em,
+        DATE(MAX(CASE
+          WHEN LOWER(lead_status) LIKE '%ready to enroll%'
+            OR LOWER(lead_status) LIKE '%interested - follow-up%'
+            OR LOWER(lead_status) LIKE '%interested-ready%'
+          THEN row_added_at END)) AS rte_moved_date_fixed
+      FROM `{CONTACTS}`
+      WHERE contact_id IS NOT NULL
+      GROUP BY 1
+    ) rfix ON LOWER(v.lead_email) = rfix.em
+    WHERE v.lead_date IS NOT NULL
+    """
     print("Scanning view (one pass)...", flush=True)
     rows = list(client.query(sql).result())
     print(f"Pulled {len(rows):,} rows", flush=True)
@@ -225,8 +258,10 @@ def main():
             vec[X["failNC"]] += 1
         vec[X["dq"]] += 1 if is_dq(r) else 0
         po = r["phase2_outcome"]
-        vec[X["vcS"]] += 1 if po == "Bot Qualified – VC scheduled" else 0
-        vec[X["vcA"]] += 1 if po == "Bot Qualified – VC alt scheduled" else 0
+        # VC booked = verified-slot flags (user decision 2026-09-11), NOT phase2_outcome text.
+        # vcS = scheduled slot; vcA = alt-only (alt set but not standard) so vcS+vcA = distinct booked.
+        vec[X["vcS"]] += b(r["vc_scheduled_flag"])
+        vec[X["vcA"]] += 1 if (b(r["vc_alt_scheduled_flag"]) and not b(r["vc_scheduled_flag"])) else 0
         vec[X["den"]] += 1 if po == "Bot Qualified – Lead denied slot" else 0
         vec[X["retry"]] += 1 if po == "Bot Qualified – Retrying" else 0
         vec[X["paOff"]] += b(r["pa_call_offered"]); vec[X["paAcc"]] += b(r["pa_call_accepted"])
@@ -290,8 +325,8 @@ def main():
         _qualified = b(r["bot_qualified"])
         vec[LX["qual"]] += _qualified
         vec[LX["dq"]] += 1 if is_dq(r) else 0
-        po = r["phase2_outcome"]
-        vec[LX["vcB"]] += 1 if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled") else 0
+        # VC booked = verified-slot flags (same basis as the KPI), not phase2_outcome text.
+        vec[LX["vcB"]] += 1 if (b(r["vc_scheduled_flag"]) or b(r["vc_alt_scheduled_flag"])) else 0
         vec[LX["vcDone"]] += b(r["vc_done_flag"])
         # DCD / RTE flag columns use the SAME bot-funnel basis as the KPI primary:
         # flag=1 AND (bot-qualified OR eligible-DQ). Raw total flag is NOT shown here.
@@ -350,23 +385,35 @@ def main():
     # First four fields drive the search filters; the rest are the funnel columns
     # the manager specified. All dates are day-offsets from epoch (null -> None).
     doff = lambda d: (d - epoch).days if d else None
-    VC_BOOKED = {"Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled"}
+    # Event-date columns (day-offsets) power the front-end date gate: VC booked / VC done / DCD /
+    # RTE count in a window only when the lead's formatted date is in the window AND the event has
+    # happened by the window's To date. `vcb` is the verified-slot flag; `eligDq` marks an
+    # eligible DCD/RTE disqualification reason (PSA review / Vague answers / Reason unclear).
     LEAD_COLS = ["email", "pod", "pa", "status", "bucket",
                  "date", "att1", "attN", "att", "conn", "con1", "conN",
                  "maxans", "tat", "qual", "dq", "vcb", "dcd", "rte", "sale",
-                 "paDials", "paConn", "paTalk"]
+                 "paDials", "paConn", "paTalk",
+                 "slotDay", "vcDoneDay", "dcdDay", "rteDay", "eligDq"]
     leads_out = []
     for r in rows:
         dq = 1 if is_dq(r) else 0
+        _sd = [d for d in (r["vc_scheduled_date"], r["vc_alt_scheduled_date"]) if d is not None]
+        _slot = min(_sd) if _sd else None
+        _reason = r["disqualification_reason"]
+        _elig = 1 if (_reason in ("PSA review needed", "Vague answers")
+                      or (_reason is not None and _reason.startswith("Reason unclear"))) else 0
+        _rteday = r["rte_moved_date_fixed"] or r["rte_moved_date"]  # corrected RTE date (contacts)
+        _vcb = 1 if (b(r["vc_scheduled_flag"]) or b(r["vc_alt_scheduled_flag"])) else 0
         leads_out.append([
             r["lead_email"] or "", r["pod"] or "", r["pa_name"] or "", r["lead_status"] or "", r["bot_bucket"] or "",
             day_off[r["lead_date"]], doff(r["bot_first_attempt_date"]), doff(r["bot_last_contacted_date"]),
             r["total_call_attempts"] or 0, r["total_connected_calls"] or 0,
             doff(r["bot_first_connect_date"]), doff(r["bot_last_connected_date"]),
             r["best_questions_answered"] or 0, r["time_to_connect_bucket"] or "",
-            b(r["bot_qualified"]), dq, 1 if r["phase2_outcome"] in VC_BOOKED else 0,
+            b(r["bot_qualified"]), dq, _vcb,
             b(r["dcd_flag"]), b(r["rte_flag"]), b(r["sale_flag"]),
             r["pa_total_dials"] or 0, r["pa_connects_120s"] or 0, round(r["pa_connected_talk_mins"] or 0, 1),
+            doff(_slot), doff(r["vc_done_date"]), doff(r["dcd_moved_date"]), doff(_rteday), _elig,
         ])
     # newest first (by lead_date) so the default view reads like recent activity
     leads_out.sort(key=lambda x: x[5], reverse=True)
