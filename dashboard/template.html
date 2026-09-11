@@ -378,6 +378,7 @@ function sparkRate(numIdx,denIdx){
 }
 function renderKPI(){
   const ix=idxRange(),t=sumDaily(ix),L=t[X.leads]||1;
+  patchGated(t,ix);  // VC booked / VC done / DCD / RTE -> event-date gated for this window
   const el=document.getElementById('kpis');
   const att=t[X.att], conn=t[X.conn], conn0=t[X.conn0], connW=conn-conn0;
   const q=t[X.qual], booked=t[X.vcS]+t[X.vcA];
@@ -390,8 +391,8 @@ function renderKPI(){
     kpiTile('Failed / Never connected',nf(t[X.failNC]),`${pf(t[X.failNC],L)} of leads · failed + never connected`,sparkline(X.failNC,true)),
     '<div class="kpibreak"></div>',
     kpiTile('Bot qualified',nf(q),`${pf(q,connW)} of connected · ≥1 answer`,sparkline(X.qual,true)),
-    kpiTile('Bot disqualified',nf(t[X.dqCWA]),`${pf(t[X.dqCWA],connW)} of connected · ≥1 answer · not qualified`,sparkline(X.dqCWA,true)),
-    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified · VC scheduled + alt scheduled`,sparkline(X.vcS,false)),
+    kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],connW)} of connected · ≥1 answer · with a disqualification reason`,sparkline(X.dq,true)),
+    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified · verified slot (scheduled + alt)`,sparkline(X.vcS,false)),
     kpiTile('VC done',nf(t[X.vcDoneBot]),`${pf(t[X.vcDoneBot],booked)} of bot-booked VCs · ${nf(t[X.vcDone]-t[X.vcDoneBot])} other (VC done, not booked by the bot)<div class="kpinote">+${nf(t[X.vcEdgeDcd]+t[X.vcEdgeRte])} leads: VC booked by the bot but marked DCD (${nf(t[X.vcEdgeDcd])}) or RTE (${nf(t[X.vcEdgeRte])}) by the PA — no VC-done.</div>`,sparkline(X.vcDone,false)),
     kpiTile('DCD flag',nf(t[X.dcdQ]+t[X.dcdDQ]),`${pf(t[X.dcdQ]+t[X.dcdDQ],L)} of leads · ${nf(Math.max(0,t[X.dcdQ]-t[X.vcEdgeDcd]))} qualified, ${nf(t[X.vcEdgeDcd])} VC booked, ${nf(t[X.dcdDQ])} disqualified`,sparkline(X.dcd,false)),
     kpiTile('RTE flag',nf(t[X.rteQ]+t[X.rteDQ]),`${pf(t[X.rteQ]+t[X.rteDQ],L)} of leads · ${nf(Math.max(0,t[X.rteQ]-t[X.vcEdgeRte]))} qualified, ${nf(t[X.vcEdgeRte])} VC booked, ${nf(t[X.rteDQ])} disqualified`,sparkline(X.rte,false)),
@@ -402,6 +403,7 @@ function renderKPI(){
 /* ---------- Funnel ---------- */
 function renderFunnel(){
   const ix=idxRange(),t=sumDaily(ix),L=t[X.leads]||1;
+  patchGated(t,ix);  // event-date gated VC booked / VC done
   // main monotonic flow (Answered Q1 removed; VC done added after VC booked)
   const main=[
     ['Leads',t[X.leads]],['Attempted',t[X.att]],['Connected',t[X.conn]],
@@ -449,6 +451,7 @@ function renderFunnel(){
 /* ---------- Impact panel ---------- */
 function renderImpact(){
   const ix=idxRange(),t=sumDaily(ix),L=t[X.leads]||1;
+  patchGated(t,ix);  // event-date gated VC booked
   // What the bot demonstrably produced (its owned output)
   const co=[
     {t:'PA-ready leads delivered',v:nf(t[X.qual]),d:`${pf(t[X.qual],L)} of leads, qualified with no human pre-call`,c:'good'},
@@ -725,6 +728,46 @@ function renderAttConn(segCol,elId,opt){
 
 /* ---------- lead explorer (all leads: search + paginate + CSV) ---------- */
 const LEADS=DATA.leads||[], LC={}; (DATA.leadCols||[]).forEach((k,i)=>LC[k]=i);
+
+/* ---------- event-date gating (VC booked / VC done / DCD / RTE) ----------
+ A flagged lead counts in a window only when its FORMATTED date is in [From,To]
+ AND its event date has occurred by the To date. Dateless flagged leads fall back
+ to the formatted date (no event gate). Returns the gated contributions for one lead. */
+function leadGate(l, To){
+  const slot=l[LC.slotDay], vd=l[LC.vcDoneDay], dd=l[LC.dcdDay], rd=l[LC.rteDay];
+  const qual=l[LC.qual], elig=l[LC.eligDq], vcb=l[LC.vcb];
+  const by=(d)=>d==null?false:d<=To;          // event has a date AND it is on/before To
+  const okOrNull=(d)=>d==null?true:d<=To;      // gate, or pass through when dateless (fallback)
+  const g={vcB:0,vcDone:0,vcDoneBot:0,dcdQ:0,dcdDQ:0,rteQ:0,rteDQ:0,eDcd:0,eRte:0};
+  if(vcb && okOrNull(slot)) g.vcB=1;                                   // VC booked (verified slot)
+  if(by(vd)) g.vcDone=1;                                              // any VC done, by To
+  const doneBot = (slot!=null && vd!=null && vd>=slot && vd<=To);      // bot-booked VC, then done
+  if(vcb && doneBot) g.vcDoneBot=1;
+  if(l[LC.dcd] && okOrNull(dd)){ if(qual) g.dcdQ=1; else if(elig) g.dcdDQ=1; }  // DCD bot-funnel
+  if(l[LC.rte] && okOrNull(rd)){ if(qual) g.rteQ=1; else if(elig) g.rteDQ=1; }  // RTE bot-funnel
+  if(vcb && slot!=null && !doneBot){                                   // edge: booked, PA moved to DCD/RTE
+    if(dd!=null && dd>=slot && dd<=To) g.eDcd=1;
+    else if(rd!=null && rd>=slot && rd<=To) g.eRte=1;
+  }
+  return g;
+}
+// Overall gated totals across leads whose formatted date is in [From,To].
+function gatedFromTo(From,To){
+  const G={vcB:0,vcDone:0,vcDoneBot:0,dcdQ:0,dcdDQ:0,rteQ:0,rteDQ:0,eDcd:0,eRte:0};
+  for(const l of LEADS){ const d=l[LC.date]; if(d<From||d>To) continue;
+    const g=leadGate(l,To); for(const k in G) G[k]+=g[k]; }
+  return G;
+}
+// Overwrite the gated indices of a summed daily vector `t` with event-date-gated values.
+function patchGated(t, ix){
+  if(!ix.length) return t;
+  const From=DAYS[ix[0]], To=DAYS[ix[ix.length-1]], G=gatedFromTo(From,To);
+  t[X.vcS]=G.vcB; t[X.vcA]=0; t[X.vcBookF]=G.vcB;
+  t[X.vcDone]=G.vcDone; t[X.vcDoneBot]=G.vcDoneBot;
+  t[X.dcdQ]=G.dcdQ; t[X.dcdDQ]=G.dcdDQ; t[X.rteQ]=G.rteQ; t[X.rteDQ]=G.rteDQ;
+  t[X.vcEdgeDcd]=G.eDcd; t[X.vcEdgeRte]=G.eRte;
+  return t;
+}
 let PAGE=0; const PSIZE=25;
 const FILTER_IDS=['qEmail','qPod','qPa','qStatus','qBucket','qQual','qTat','qVcb','qSale','qDcd','qRte'];
 const qval=id=>(document.getElementById(id).value||'').trim().toLowerCase();  // email substring
@@ -840,14 +883,18 @@ function renderFunnelTable(){
   const ix=idxRange();
   // current DCD / RTE from CRM lead_status, per segment (range-filtered)
   const inRange=new Set(ix.map(i=>DAYS[i])), segCol=FDIM==='pa'?LC.pa:LC.pod;
+  const To=ix.length?DAYS[ix[ix.length-1]]:DAYS[ND-1];  // window end for the event-date gate
   const DCD_ST=new Set(['Discovery call done','Discovery_Call_Done']), RTE_ST=new Set(['Interested-Ready to enroll']);
-  const cur={};
+  const cur={}, gseg={};  // cur = current-status snapshot; gseg = event-date-gated per segment
   LEADS.forEach(x=>{ if(!inRange.has(x[LC.date]))return; const seg=x[segCol]||'(blank)', s=(x[LC.status]||'').trim();
-    if(!cur[seg])cur[seg]={dcd:0,rte:0}; if(DCD_ST.has(s))cur[seg].dcd++; if(RTE_ST.has(s))cur[seg].rte++; });
-  const rows=sumDim(FDIM,ix).map(r=>{const v=r.v,c=cur[r.name||'(blank)']||{dcd:0,rte:0};return{
-    name:r.name||'(blank)',leads:v[LX.leads],att:v[LX.att],conn:v[LX.conn],aS:v[LX.attSum],cS:v[LX.connSum],
+    if(!cur[seg])cur[seg]={dcd:0,rte:0}; if(DCD_ST.has(s))cur[seg].dcd++; if(RTE_ST.has(s))cur[seg].rte++;
+    const g=leadGate(x,To); let G=gseg[seg]; if(!G)G=gseg[seg]={vcB:0,vcd:0,dcd:0,rte:0,eDcd:0,eRte:0};
+    G.vcB+=g.vcB; G.vcd+=g.vcDone; G.dcd+=g.dcdQ+g.dcdDQ; G.rte+=g.rteQ+g.rteDQ; G.eDcd+=g.eDcd; G.eRte+=g.eRte; });
+  const rows=sumDim(FDIM,ix).map(r=>{const v=r.v,nm=r.name||'(blank)',c=cur[nm]||{dcd:0,rte:0},
+      G=gseg[nm]||{vcB:0,vcd:0,dcd:0,rte:0,eDcd:0,eRte:0};return{
+    name:nm,leads:v[LX.leads],att:v[LX.att],conn:v[LX.conn],aS:v[LX.attSum],cS:v[LX.connSum],
     ans0:v[LX.conn0],ans1:Math.max(0,v[LX.conn]-v[LX.conn0]),qual:v[LX.qual],dq:v[LX.dq],
-    vcb:v[LX.vcB],vcd:v[LX.vcDone],dcd:v[LX.dcd],botDcd:v[LX.eDcd],curDcd:c.dcd,rte:v[LX.rte],botRte:v[LX.eRte],curRte:c.rte,
+    vcb:G.vcB,vcd:G.vcd,dcd:G.dcd,botDcd:G.eDcd,curDcd:c.dcd,rte:G.rte,botRte:G.eRte,curRte:c.rte,
     botSale:v[LX.botSale],nonBotSale:Math.max(0,v[LX.sale]-v[LX.botSale])};}).filter(r=>r.leads>0);
   const cols=[['name','Segment'],['leads','Leads'],['att','Leads attempted · avg'],['conn','Leads connected · avg'],
     ['ans1','Ans ≥1'],['qual','Bot Q'],['dq','Bot DQ'],['vcb','VC booked'],['vcd','VC done'],
