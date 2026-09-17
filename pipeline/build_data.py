@@ -37,9 +37,15 @@ DQ = ["Non-tech", "Vague answers", "PSA review needed", "Salary <10L",
       "Not looking to switch or upskill", "Target outside tech/AI", "<5 YOE",
       "Reason unclear — review transcript"]
 OUT = ["Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled",
-       "Bot Qualified – Lead denied slot", "Bot Qualified – Retrying",
-       "Bot Qualified – Retries over", "Bot Qualified", "PA_Call_Booked",
-       "Cold_MC_Directed", "Fallback_Phase1", "Not_Triggered"]
+       "Bot Qualified – Slot pending", "Bot Qualified – Lead denied slot",
+       "Bot Qualified – Retrying", "Bot Qualified – Retries over", "Bot Qualified",
+       "PA_Call_Booked", "Cold_MC_Directed", "Fallback_Phase1", "Not_Triggered"]
+# Bot Evals — LLM-as-judge classification (classification_correctness_peak / _issue_tags_peak).
+# EV = judge verdict (display order matches the reference). EVTAG = disagreement issue tags
+# (comma-separated multi-tags in the view; one call can carry several, so shares don't sum to 100).
+EV = ["agree", "na", "disagree_wrongly_qualified", "needs_review", "disagree_wrongly_disqualified"]
+EVTAG = ["role_rule", "ctc_rule", "unanswered_gate_fact", "reask_threshold",
+         "experience_rule", "intent_rule", "target_role_rule", "transcript_ambiguity", "other"]
 TTC = ["a: 0–5 min", "b: 5–15 min", "c: 15–30 min", "d: 30–60 min", "e: 1–12 hrs",
        "f: 12–24 hrs", "g: 1–3 days", "h: > 3 days",
        "Not Connected"]
@@ -139,6 +145,10 @@ SELECT_COLS = [
     # verified-slot flags below, so the peak/latest choice does not affect VC.
     "disqualification_reason_peak AS disqualification_reason",
     "phase2_outcome_peak AS phase2_outcome","time_to_connect_bucket","bot_connect_to_pa_bucket",
+    # Bot Evals — LLM-as-judge classification (source names: classification_correctness /
+    # _issue_tags / _judge_reasoning; the view exposes them split, and we use _peak).
+    "classification_correctness_peak AS cls_correct",
+    "classification_issue_tags_peak AS cls_tags",
     "total_call_attempts","best_questions_answered",
     "bot_attempted","bot_connected","bot_qualified",
     "flag_connected_0_ans","flag_ans_1","flag_ans_6",
@@ -218,7 +228,10 @@ def main():
     dims = {name: {"labels": [], "d": None, "_map": {}} for name in DIMS_SRC}
     hist = {k: [[0]*n for _ in range(ND)] for k, n in
             {"buk": len(BUCKETS), "dq": len(DQ), "out": len(OUT), "ttc": len(TTC),
-             "bpa": len(BPA), "sg": len(SG), "att": len(ATT), "ans": 10}.items()}
+             "bpa": len(BPA), "sg": len(SG), "att": len(ATT), "ans": 10,
+             # Bot Evals: ev = judge verdict, evtag = disagreement tags, evtagn = calls carrying
+             # >=1 tag (denominator for tag shares), evout = phase-2 outcome of judged calls
+             "ev": len(EV), "evtag": len(EVTAG), "evtagn": 1, "evout": len(OUT)}.items()}
 
     # first pass: discover dimension label sets (stable order by frequency)
     dim_counts = {name: defaultdict(int) for name in DIMS_SRC}
@@ -357,6 +370,8 @@ def main():
     TTCI = {v: i for i, v in enumerate(TTC)}
     BPAI = {v: i for i, v in enumerate(BPA)}
     SGI = {v: i for i, v in enumerate(SG)}
+    EVI = {v: i for i, v in enumerate(EV)}
+    EVTAGI = {v: i for i, v in enumerate(EVTAG)}
 
     for r in rows:
         i = idx_of[day_off[r["lead_date"]]]
@@ -379,6 +394,20 @@ def main():
         hist["att"][i][att_bucket(r["total_call_attempts"])] += 1
         a = min(max(r["best_questions_answered"] or 0, 0), 9)
         hist["ans"][i][a] += 1
+        # Bot Evals (judged calls only): verdict, phase-2 outcome of judged calls, disagreement tags
+        cc = r["cls_correct"]
+        if cc in EVI:
+            hist["ev"][i][EVI[cc]] += 1
+            if po in OUTI and po != "Not_Triggered":  # outcome table = judged calls' recorded outcome
+                hist["evout"][i][OUTI[po]] += 1
+        tags = r["cls_tags"]
+        if tags:
+            _any = False
+            for _t in tags.split(","):
+                _t = _t.strip()
+                if _t in EVTAGI:
+                    hist["evtag"][i][EVTAGI[_t]] += 1; _any = True
+            if _any: hist["evtagn"][i][0] += 1
 
     # Full lead-level table (ALL leads), columnar to keep the payload small.
     # Powers the searchable + paginated + CSV-exportable lead explorer.
@@ -430,6 +459,7 @@ def main():
         "days": days,
         "meta": {"rows": len(rows), "buckets": BUCKETS, "dq": DQ, "out": OUT,
                  "ttc": TTC, "bpa": BPA, "sg": SG, "att": ATT,
+                 "ev": EV, "evtag": EVTAG,
                  "X": XCOLS, "LX": LXCOLS, "M": M, "LM": LM},
         "daily": daily,
         "dims": {name: {"v": dims[name]["labels"], "d": dims[name]["d"]} for name in dims},
