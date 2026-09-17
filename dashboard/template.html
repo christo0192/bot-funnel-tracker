@@ -228,6 +228,15 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div id="qualDrivers"></div>
   </div>
 
+  <div class="sectionlabel">Bot Evals — outcomes &amp; accuracy</div>
+  <div class="hint" style="margin:-4px 0 10px">What the bot decided, and — where the LLM-as-judge reviewed the call — whether that decision was right. Judged calls only; follows the date filter.</div>
+  <div class="grid c2b" id="evKpis"></div>
+  <div class="grid c2b">
+    <div class="card"><div class="cardhead"><div><h3>Judge verdicts</h3><div class="hint">How the LLM-as-judge rated the bot's classification</div></div></div><div id="evVerdicts"></div><div id="evNote" class="hint" style="margin-top:8px"></div></div>
+    <div class="card"><div class="cardhead"><div><h3>Why the judge disagreed</h3><div class="hint">Issue tags on reviewed calls · one call can carry several, so shares don't sum to 100%</div></div></div><div id="evTags"></div></div>
+  </div>
+  <div class="card"><div class="cardhead"><div><h3>Recorded phase-2 outcomes of judged calls</h3><div class="hint">The bot's own outcome for the calls the judge reviewed (excludes calls where phase 2 never triggered)</div></div></div><div id="evOutcome"></div></div>
+
   <div class="sectionlabel">2 · Time to first connect</div>
   <div class="card"><div class="cardhead"><div><h3>Time to first connect</h3>
     <div class="hint">Lag from lead to the bot's first successful connect (of connected leads)</div></div></div><div id="ttcBars"></div></div>
@@ -522,7 +531,7 @@ function renderTrends(){
 
 /* ---------- horizontal bars ---------- */
 function barsInto(elId,pairs,opt){
-  opt=opt||{};const tot=pairs.reduce((s,p)=>s+p[1],0)||1;
+  opt=opt||{};const tot=(opt.denom!=null?opt.denom:pairs.reduce((s,p)=>s+p[1],0))||1;
   const mx=Math.max(...pairs.map(p=>p[1]),1e-9);
   const el=document.getElementById(elId);
   const val=p=>opt.pct?`${nf(p[1])} <span class="pctv">(${pf(p[1],tot,0)})</span>`:nf(p[1]);
@@ -549,6 +558,40 @@ function renderMixes(){
   barsInto('dqBars',dqp,{color:(i)=>status[i%status.length],pct:true,
     head:`<div class="cardnum">${nf(dqTot)} <span>leads with a recorded disqualification reason · ${pf(dqTot,L)} of leads</span></div>`});
   const ttc=sumHist('ttc',ix);barsInto('ttcBars',M.ttc.map((l,i)=>[l,ttc[i]]).filter(p=>p[1]>0),{color:()=>cssv('--seq-3'),pctLeft:true});
+}
+
+/* ---------- Bot Evals (LLM-as-judge classification) ---------- */
+function renderEvals(){
+  const ix=idxRange();
+  const ev=sumHist('ev',ix), evtag=sumHist('evtag',ix), evout=sumHist('evout',ix), out=sumHist('out',ix);
+  const evtagn=sumHist('evtagn',ix)[0]||0;
+  const vi=k=>M.ev.indexOf(k);
+  const agree=ev[vi('agree')]||0, na=ev[vi('na')]||0, wq=ev[vi('disagree_wrongly_qualified')]||0,
+        nr=ev[vi('needs_review')]||0, wd=ev[vi('disagree_wrongly_disqualified')]||0;
+  const judged=ev.reduce((s,v)=>s+v,0);
+  const assessed=agree+wq+wd;                               // excludes not-assessable & needs-review
+  const phase2=out.reduce((s,v)=>s+v,0)-(out[M.out.indexOf('Not_Triggered')]||0);
+  document.getElementById('evKpis').innerHTML=
+    `<div class="card"><div class="cardhead"><div><h3>Calls judged</h3><div class="hint">Calls the LLM judge reviewed, in range</div></div></div>
+       <div class="cardnum" style="font-size:30px">${nf(judged)} <span>of ${nf(phase2)} phase-2 calls in range</span></div></div>
+     <div class="card"><div class="cardhead"><div><h3>Correct classification</h3><div class="hint">Judge agreed ÷ assessable calls</div></div></div>
+       <div class="cardnum" style="font-size:30px">${assessed?(agree/assessed*100).toFixed(1)+'%':'–'} <span>${nf(agree)} of ${nf(assessed)} assessed (excl. not-assessable &amp; needs-review)</span></div></div>`;
+  const VLAB={agree:'Judge agreed with the bot',na:'Not assessable',disagree_wrongly_qualified:'Wrongly qualified',needs_review:'Needs human review',disagree_wrongly_disqualified:'Wrongly disqualified'};
+  const VC={agree:cssv('--s5'),na:cssv('--ink-3'),disagree_wrongly_qualified:cssv('--crit'),needs_review:cssv('--warn'),disagree_wrongly_disqualified:cssv('--serious')};
+  const vp=M.ev.map((k,i)=>[k,ev[i]]).filter(p=>p[1]>0).sort((a,b)=>b[1]-a[1]);
+  barsInto('evVerdicts',vp.map(p=>[VLAB[p[0]]||p[0],p[1]]),{pct:true,color:(i)=>VC[vp[i][0]]||cssv('--s1'),
+    head:`<div class="cardnum">${nf(judged)} <span>calls judged · share of judged</span></div>`});
+  document.getElementById('evNote').innerHTML=`<b>Not assessable</b> (${nf(na)}): the judge couldn't form a view on these calls — not the same as the bot being wrong. Excluded from Correct classification above.`;
+  const TLAB={role_rule:'Role rule',ctc_rule:'CTC rule',unanswered_gate_fact:'Gate fact left unanswered',reask_threshold:'Re-ask threshold',experience_rule:'Experience rule',intent_rule:'Intent rule',target_role_rule:'Target-role rule',transcript_ambiguity:'Transcript ambiguity',other:'Other'};
+  const tp=M.evtag.map((k,i)=>[TLAB[k]||k,evtag[i]]).filter(p=>p[1]>0).sort((a,b)=>b[1]-a[1]);
+  if(tp.length) barsInto('evTags',tp,{pct:true,denom:evtagn||1,color:()=>cssv('--seq-3'),
+    head:`<div class="cardnum">${nf(evtagn)} <span>calls the judge flagged · share of flagged</span></div>`});
+  else document.getElementById('evTags').innerHTML='<div class="hint">No disagreement tags in range.</div>';
+  const op=M.out.map((l,i)=>[l.replace('Bot Qualified – ','BQ – '),evout[i]]).filter(p=>p[1]>0).sort((a,b)=>b[1]-a[1]);
+  const otot=op.reduce((s,p)=>s+p[1],0);
+  if(op.length) barsInto('evOutcome',op,{pct:true,color:(i)=>SER()[i%8],
+    head:`<div class="cardnum">${nf(otot)} <span>judged calls across ${op.length} recorded phase-2 outcomes</span></div>`});
+  else document.getElementById('evOutcome').innerHTML='<div class="hint">No judged calls in range.</div>';
 }
 
 /* ---------- donut ---------- */
@@ -954,7 +997,7 @@ function renderAll(){
   renderQualOutcome();renderQdimSeg();renderQualDrivers();
   renderAttConn(LC.pod,'podAtt',{qual:document.getElementById('podQ').value});
   renderAttConn(LC.pa,'paAtt',{qual:document.getElementById('paQ').value,pod:document.getElementById('paPod').value});
-  renderTrends();renderMixes();renderCRM();
+  renderTrends();renderMixes();renderEvals();renderCRM();
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('foot').innerHTML=`Source: <span class="num">ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</span> · ${nf(M.rows)} leads · rebuilt daily from BigQuery · generated ${DATA.generated_at}`;
