@@ -1,14 +1,15 @@
 name: Refresh IK Bot Console
 
 # Cloud-scheduled daily refresh — no local machine needed.
-# 04:30 UTC = 10:00 IST. Also runnable on demand from the Actions tab.
-# NOTE: requires GitHub Actions billing to be active on the account — if runs fail
-# instantly ("job was not started because recent account payments have failed"),
-# fix it under GitHub Settings > Billing & plans. A local Windows scheduled task
-# (see pipeline/refresh.sh) provides the same 10:00 IST refresh independently.
+# 04:37 UTC ≈ 10:07 IST. An odd, off-peak minute on purpose: GitHub's `schedule`
+# trigger is best-effort and is most often delayed/dropped at :00 and :30, so we
+# avoid the busy top/half of the hour. Also runnable on demand from the Actions tab.
+# NOTE: needs GitHub Actions to be runnable (public repo = free minutes). If a run
+# fails instantly ("job was not started because recent account payments have failed"),
+# that's account billing, not this file.
 on:
   schedule:
-    - cron: "30 4 * * *"
+    - cron: "37 4 * * *"
   workflow_dispatch: {}
 
 concurrency:
