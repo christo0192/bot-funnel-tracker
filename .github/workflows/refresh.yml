@@ -1,15 +1,18 @@
 name: Refresh IK Bot Console
 
-# Cloud-scheduled daily refresh — no local machine needed.
-# 04:37 UTC ≈ 10:07 IST. An odd, off-peak minute on purpose: GitHub's `schedule`
-# trigger is best-effort and is most often delayed/dropped at :00 and :30, so we
-# avoid the busy top/half of the hour. Also runnable on demand from the Actions tab.
-# NOTE: needs GitHub Actions to be runnable (public repo = free minutes). If a run
-# fails instantly ("job was not started because recent account payments have failed"),
-# that's account billing, not this file.
+# Daily refresh — build from BigQuery, inject, deploy to Vercel.
+#
+# PRIMARY trigger: an external cron service (cron-job.org) calls this workflow via
+# the GitHub API (workflow_dispatch) at exactly 10:00 IST — GitHub's own `schedule`
+# is best-effort and never punctual, so the precise 10 a.m. run comes from outside.
+#
+# FALLBACK: the `schedule` below runs at 07:30 UTC (13:00 IST) as a safety net in
+# case the external service ever fails to fire — deliberately hours after 10:00 so
+# it does NOT collide with (double up) the punctual external trigger. Deploys are
+# idempotent, so a duplicate run is harmless.
 on:
   schedule:
-    - cron: "37 4 * * *"
+    - cron: "30 7 * * *"   # 13:00 IST fallback only — punctual 10:00 run comes from cron-job.org
   workflow_dispatch: {}
 
 concurrency:
