@@ -288,6 +288,7 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
       <select id="qSale" class="qsel"><option value="">Sale: any</option><option value="1">Yes</option><option value="0">No</option></select>
       <select id="qDcd" class="qsel"><option value="">DCD: any</option><option value="1">Yes</option><option value="0">No</option></select>
       <select id="qRte" class="qsel"><option value="">RTE: any</option><option value="1">Yes</option><option value="0">No</option></select>
+      <select id="qVerdict" class="qsel"><option value="">Judge verdict: any</option><option value="agree">Judge agreed</option><option value="disagree_wrongly_qualified">Wrongly qualified</option><option value="disagree_wrongly_disqualified">Wrongly disqualified</option><option value="needs_review">Needs human review</option><option value="na">Not assessable</option></select>
       <button id="qReset" class="iconbtn" title="Clear all filters">✕</button>
       <span class="spacerflex"></span>
       <span id="leadCount" class="hint"></span>
@@ -812,7 +813,8 @@ function patchGated(t, ix){
   return t;
 }
 let PAGE=0; const PSIZE=25;
-const FILTER_IDS=['qEmail','qPod','qPa','qStatus','qBucket','qQual','qTat','qVcb','qSale','qDcd','qRte'];
+const FILTER_IDS=['qEmail','qPod','qPa','qStatus','qBucket','qQual','qTat','qVcb','qSale','qDcd','qRte','qVerdict'];
+const VERDICT_LABELS={agree:'Judge agreed',disagree_wrongly_qualified:'Wrongly qualified',disagree_wrongly_disqualified:'Wrongly disqualified',needs_review:'Needs human review',na:'Not assessable'};
 const qval=id=>(document.getElementById(id).value||'').trim().toLowerCase();  // email substring
 const gval=id=>document.getElementById(id).value||'';                         // exact select value
 function leadFilterActive(){return FILTER_IDS.some(id=>document.getElementById(id).value);}
@@ -830,7 +832,8 @@ function populateFilters(){
 }
 function filteredLeads(){
   const e=qval('qEmail'),pod=gval('qPod'),pa=gval('qPa'),st=gval('qStatus'),bk=gval('qBucket'),
-        ql=gval('qQual'),tat=gval('qTat'),vcb=gval('qVcb'),sale=gval('qSale'),dcd=gval('qDcd'),rte=gval('qRte');
+        ql=gval('qQual'),tat=gval('qTat'),vcb=gval('qVcb'),sale=gval('qSale'),dcd=gval('qDcd'),rte=gval('qRte'),
+        vd=gval('qVerdict');
   if(!leadFilterActive()) return LEADS;
   return LEADS.filter(r=>
     (!e   || String(r[LC.email]).toLowerCase().includes(e)) &&
@@ -843,7 +846,8 @@ function filteredLeads(){
     (vcb===''  || String(r[LC.vcb])===vcb) &&
     (sale==='' || String(r[LC.sale])===sale) &&
     (dcd===''  || String(r[LC.dcd])===dcd) &&
-    (rte===''  || String(r[LC.rte])===rte));
+    (rte===''  || String(r[LC.rte])===rte) &&
+    (!vd  || r[LC.verdict]===vd));
 }
 const esc=s=>{s=s==null?'':String(s);return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));};
 const fmtOff=o=>o==null?'–':fmtD(o);
@@ -851,7 +855,7 @@ function renderLeads(){
   const rows=filteredLeads(), total=rows.length, pages=Math.max(1,Math.ceil(total/PSIZE));
   if(PAGE>=pages)PAGE=pages-1; if(PAGE<0)PAGE=0;
   const slice=rows.slice(PAGE*PSIZE,PAGE*PSIZE+PSIZE);
-  const head=['Lead ID','Date','1st attempt','Last attempt','Attempts','Connects','1st connect','Last connect','Bucket','Lead status','Max-ans TAT','Qual','VC booked','DCD','RTE','Sale'];
+  const head=['Lead ID','Date','1st attempt','Last attempt','Attempts','Connects','1st connect','Last connect','Bucket','Lead status','Max-ans TAT','Qual','VC booked','DCD','RTE','Sale','Judge verdict'];
   const yn=v=>v?'✓':'';
   document.getElementById('leadsTable').innerHTML='<thead><tr>'+head.map(h=>`<th>${h}</th>`).join('')+
     '</tr></thead><tbody>'+slice.map(r=>{
@@ -863,7 +867,8 @@ function renderLeads(){
         <td>${esc(r[LC.bucket])||'–'}</td>
         <td>${esc(r[LC.status])||'–'}</td><td>${esc(r[LC.tat])||'–'}</td>
         <td style="color:${qc};font-weight:700">${yn(r[LC.qual])}</td>
-        <td>${yn(r[LC.vcb])}</td><td>${yn(r[LC.dcd])}</td><td>${yn(r[LC.rte])}</td><td>${yn(r[LC.sale])}</td></tr>`;
+        <td>${yn(r[LC.vcb])}</td><td>${yn(r[LC.dcd])}</td><td>${yn(r[LC.rte])}</td><td>${yn(r[LC.sale])}</td>
+        <td>${esc(VERDICT_LABELS[r[LC.verdict]]||'')}</td></tr>`;
     }).join('')+'</tbody>';
   document.getElementById('leadCount').textContent=`${nf(total)} lead${total===1?'':'s'}${leadFilterActive()?' (filtered)':''}`;
   const pg=document.getElementById('leadsPager');
@@ -875,14 +880,15 @@ function renderLeads(){
 }
 function exportCSV(){
   const rows=filteredLeads();
-  const cols=['email','pod','pa','status','bucket','date','att1','attN','att','conn','con1','conN','maxans','tat','qual','dq','vcb','dcd','rte','sale'];
-  const head=['lead_email','pod','pa','lead_status','connection_bucket','lead_date','first_attempt_date','last_attempt_date','total_attempts','connects','first_connect_date','last_connect_date','max_answers','max_answer_tat','qualified','disqualified','vc_booked','dcd','rte','sale'];
+  const cols=['email','pod','pa','status','bucket','date','att1','attN','att','conn','con1','conN','maxans','tat','qual','dq','vcb','dcd','rte','sale','verdict'];
+  const head=['lead_email','pod','pa','lead_status','connection_bucket','lead_date','first_attempt_date','last_attempt_date','total_attempts','connects','first_connect_date','last_connect_date','max_answers','max_answer_tat','qualified','disqualified','vc_booked','dcd','rte','sale','judge_verdict'];
   const DATEC=['date','att1','attN','con1','conN'], FLAGC=['qual','dq','vcb','dcd','rte','sale'];
   const cq=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   const lines=[head.join(',')];
   rows.forEach(r=>lines.push(cols.map(c=>{
     if(DATEC.includes(c))return r[LC[c]]==null?'':isoOff(r[LC[c]]);
     if(FLAGC.includes(c))return r[LC[c]]?'1':'0';
+    if(c==='verdict')return cq(VERDICT_LABELS[r[LC.verdict]]||'');
     return cq(r[LC[c]]);
   }).join(',')));
   const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});

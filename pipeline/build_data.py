@@ -422,7 +422,8 @@ def main():
                  "date", "att1", "attN", "att", "conn", "con1", "conN",
                  "maxans", "tat", "qual", "dq", "vcb", "dcd", "rte", "sale",
                  "paDials", "paConn", "paTalk",
-                 "slotDay", "vcDoneDay", "dcdDay", "rteDay", "eligDq"]
+                 "slotDay", "vcDoneDay", "dcdDay", "rteDay", "eligDq",
+                 "verdict"]  # LLM-judge verdict (cls_correct) for the lead-explorer filter
     leads_out = []
     for r in rows:
         dq = 1 if is_dq(r) else 0
@@ -443,6 +444,7 @@ def main():
             b(r["dcd_flag"]), b(r["rte_flag"]), b(r["sale_flag"]),
             r["pa_total_dials"] or 0, r["pa_connects_120s"] or 0, round(r["pa_connected_talk_mins"] or 0, 1),
             doff(_slot), doff(r["vc_done_date"]), doff(r["dcd_moved_date"]), doff(_rteday), _elig,
+            r["cls_correct"] or "",
         ])
     # newest first (by lead_date) so the default view reads like recent activity
     leads_out.sort(key=lambda x: x[5], reverse=True)
