@@ -402,7 +402,7 @@ function renderKPI(){
     '<div class="kpibreak"></div>',
     kpiTile('Bot qualified',nf(q),`${pf(q,connW)} of connected · ≥1 answer`,sparkline(X.qual,true)),
     kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],connW)} of connected · ≥1 answer · with a disqualification reason`,sparkline(X.dq,true)),
-    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified · verified slot (scheduled + alt)`,sparkline(X.vcS,false)),
+    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified · verified slot (scheduled + alt), incl. upcoming`,sparkline(X.vcS,false)),
     kpiTile('VC done',nf(t[X.vcDoneBot]),`${pf(t[X.vcDoneBot],booked)} of bot-booked VCs · ${nf(t[X.vcDone]-t[X.vcDoneBot])} other (VC done, not booked by the bot)<div class="kpinote">+${nf(t[X.vcEdgeDcd]+t[X.vcEdgeRte])} leads: VC booked by the bot but marked DCD (${nf(t[X.vcEdgeDcd])}) or RTE (${nf(t[X.vcEdgeRte])}) by the PA — no VC-done.</div>`,sparkline(X.vcDone,false)),
     kpiTile('DCD flag',nf(t[X.dcdQ]+t[X.dcdDQ]),`${pf(t[X.dcdQ]+t[X.dcdDQ],L)} of leads · ${nf(Math.max(0,t[X.dcdQ]-t[X.vcEdgeDcd]))} qualified, ${nf(t[X.vcEdgeDcd])} VC booked, ${nf(t[X.dcdDQ])} disqualified`,sparkline(X.dcd,false)),
     kpiTile('RTE flag',nf(t[X.rteQ]+t[X.rteDQ]),`${pf(t[X.rteQ]+t[X.rteDQ],L)} of leads · ${nf(Math.max(0,t[X.rteQ]-t[X.vcEdgeRte]))} qualified, ${nf(t[X.vcEdgeRte])} VC booked, ${nf(t[X.rteDQ])} disqualified`,sparkline(X.rte,false)),
@@ -783,7 +783,7 @@ function leadGate(l, To){
   const by=(d)=>d==null?false:d<=To;          // event has a date AND it is on/before To
   const okOrNull=(d)=>d==null?true:d<=To;      // gate, or pass through when dateless (fallback)
   const g={vcB:0,vcDone:0,vcDoneBot:0,dcdQ:0,dcdDQ:0,rteQ:0,rteDQ:0,eDcd:0,eRte:0};
-  if(vcb && okOrNull(slot)) g.vcB=1;                                   // VC booked (verified slot)
+  if(vcb) g.vcB=1;                                                     // VC booked = every booking made in the window (ungated by slot date; the "has it happened yet" gate lives on VC done)
   if(by(vd)) g.vcDone=1;                                              // any VC done, by To
   const doneBot = (slot!=null && vd!=null && vd>=slot && vd<=To);      // bot-booked VC, then done
   if(vcb && doneBot) g.vcDoneBot=1;
