@@ -402,7 +402,7 @@ function renderKPI(){
     '<div class="kpibreak"></div>',
     kpiTile('Bot qualified',nf(q),`${pf(q,connW)} of connected · ≥1 answer`,sparkline(X.qual,true)),
     kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],connW)} of connected · ≥1 answer · with a disqualification reason`,sparkline(X.dq,true)),
-    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified · verified slot (scheduled + alt), incl. upcoming`,sparkline(X.vcS,false)),
+    kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified · VC scheduled + alt scheduled`,sparkline(X.vcS,false)),
     kpiTile('VC done',nf(t[X.vcDoneBot]),`${pf(t[X.vcDoneBot],booked)} of bot-booked VCs · ${nf(t[X.vcDone]-t[X.vcDoneBot])} other (VC done, not booked by the bot)<div class="kpinote">+${nf(t[X.vcEdgeDcd]+t[X.vcEdgeRte])} leads: VC booked by the bot but marked DCD (${nf(t[X.vcEdgeDcd])}) or RTE (${nf(t[X.vcEdgeRte])}) by the PA — no VC-done.</div>`,sparkline(X.vcDone,false)),
     kpiTile('DCD flag',nf(t[X.dcdQ]+t[X.dcdDQ]),`${pf(t[X.dcdQ]+t[X.dcdDQ],L)} of leads · ${nf(Math.max(0,t[X.dcdQ]-t[X.vcEdgeDcd]))} qualified, ${nf(t[X.vcEdgeDcd])} VC booked, ${nf(t[X.dcdDQ])} disqualified`,sparkline(X.dcd,false)),
     kpiTile('RTE flag',nf(t[X.rteQ]+t[X.rteDQ]),`${pf(t[X.rteQ]+t[X.rteDQ],L)} of leads · ${nf(Math.max(0,t[X.rteQ]-t[X.vcEdgeRte]))} qualified, ${nf(t[X.vcEdgeRte])} VC booked, ${nf(t[X.rteDQ])} disqualified`,sparkline(X.rte,false)),
@@ -806,7 +806,8 @@ function gatedFromTo(From,To){
 function patchGated(t, ix){
   if(!ix.length) return t;
   const From=DAYS[ix[0]], To=DAYS[ix[ix.length-1]], G=gatedFromTo(From,To);
-  t[X.vcS]=G.vcB; t[X.vcA]=0; t[X.vcBookF]=G.vcB;
+  // VC booked (X.vcS/vcA) is NOT patched here — it uses the peak-outcome daily totals so it ties
+  // to the "Qualified — what happens next" panel. VC done / DCD / RTE keep their event-date gate.
   t[X.vcDone]=G.vcDone; t[X.vcDoneBot]=G.vcDoneBot;
   t[X.dcdQ]=G.dcdQ; t[X.dcdDQ]=G.dcdDQ; t[X.rteQ]=G.rteQ; t[X.rteDQ]=G.rteDQ;
   t[X.vcEdgeDcd]=G.eDcd; t[X.vcEdgeRte]=G.eRte;
@@ -948,7 +949,7 @@ function renderFunnelTable(){
       G=gseg[nm]||{vcB:0,vcd:0,dcd:0,rte:0,eDcd:0,eRte:0};return{
     name:nm,leads:v[LX.leads],att:v[LX.att],conn:v[LX.conn],aS:v[LX.attSum],cS:v[LX.connSum],
     ans0:v[LX.conn0],ans1:Math.max(0,v[LX.conn]-v[LX.conn0]),qual:v[LX.qual],dq:v[LX.dq],
-    vcb:G.vcB,vcd:G.vcd,dcd:G.dcd,botDcd:G.eDcd,curDcd:c.dcd,rte:G.rte,botRte:G.eRte,curRte:c.rte,
+    vcb:v[LX.vcB],vcd:G.vcd,dcd:G.dcd,botDcd:G.eDcd,curDcd:c.dcd,rte:G.rte,botRte:G.eRte,curRte:c.rte,
     botSale:v[LX.botSale],nonBotSale:Math.max(0,v[LX.sale]-v[LX.botSale])};}).filter(r=>r.leads>0);
   const cols=[['name','Segment'],['leads','Leads'],['att','Leads attempted · avg'],['conn','Leads connected · avg'],
     ['ans1','Ans ≥1'],['qual','Bot Q'],['dq','Bot DQ'],['vcb','VC booked'],['vcd','VC done'],

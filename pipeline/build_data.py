@@ -271,10 +271,11 @@ def main():
             vec[X["failNC"]] += 1
         vec[X["dq"]] += 1 if is_dq(r) else 0
         po = r["phase2_outcome"]
-        # VC booked = verified-slot flags (user decision 2026-09-11), NOT phase2_outcome text.
-        # vcS = scheduled slot; vcA = alt-only (alt set but not standard) so vcS+vcA = distinct booked.
-        vec[X["vcS"]] += b(r["vc_scheduled_flag"])
-        vec[X["vcA"]] += 1 if (b(r["vc_alt_scheduled_flag"]) and not b(r["vc_scheduled_flag"])) else 0
+        # VC booked = phase2_outcome peak text (user decision 2026-09-22): ties exactly to the
+        # "Qualified — what happens next" panel; a lead who booked then denied/drifted is NOT counted
+        # (it lands in its own outcome row instead). The verified-slot flags are no longer the basis.
+        vec[X["vcS"]] += 1 if po == "Bot Qualified – VC scheduled" else 0
+        vec[X["vcA"]] += 1 if po == "Bot Qualified – VC alt scheduled" else 0
         vec[X["den"]] += 1 if po == "Bot Qualified – Lead denied slot" else 0
         vec[X["retry"]] += 1 if po == "Bot Qualified – Retrying" else 0
         vec[X["paOff"]] += b(r["pa_call_offered"]); vec[X["paAcc"]] += b(r["pa_call_accepted"])
@@ -338,8 +339,9 @@ def main():
         _qualified = b(r["bot_qualified"])
         vec[LX["qual"]] += _qualified
         vec[LX["dq"]] += 1 if is_dq(r) else 0
-        # VC booked = verified-slot flags (same basis as the KPI), not phase2_outcome text.
-        vec[LX["vcB"]] += 1 if (b(r["vc_scheduled_flag"]) or b(r["vc_alt_scheduled_flag"])) else 0
+        # VC booked = phase2_outcome peak text (same basis as the KPI), matching the outcome panel.
+        po = r["phase2_outcome"]
+        vec[LX["vcB"]] += 1 if po in ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled") else 0
         vec[LX["vcDone"]] += b(r["vc_done_flag"])
         # DCD / RTE flag columns use the SAME bot-funnel basis as the KPI primary:
         # flag=1 AND (bot-qualified OR eligible-DQ). Raw total flag is NOT shown here.
