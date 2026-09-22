@@ -294,7 +294,7 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
       <span id="leadCount" class="hint"></span>
       <button id="exportCsv" class="btn">⭳ Export CSV</button>
     </div>
-    <div class="hint" style="margin:2px 0 10px">All filters combine with AND. Export downloads all leads when no filter is set, or just the filtered rows when one is.</div>
+    <div class="hint" style="margin:2px 0 10px">These filters combine with AND, and with the date range at the top of the page. Export downloads exactly the rows shown here.</div>
     <div class="scroll"><table id="leadsTable"></table></div>
     <div class="pager" id="leadsPager"></div>
   </div>
@@ -818,6 +818,8 @@ const VERDICT_LABELS={agree:'Judge agreed',disagree_wrongly_qualified:'Wrongly q
 const qval=id=>(document.getElementById(id).value||'').trim().toLowerCase();  // email substring
 const gval=id=>document.getElementById(id).value||'';                         // exact select value
 function leadFilterActive(){return FILTER_IDS.some(id=>document.getElementById(id).value);}
+// the lead list is "scoped" when a dropdown filter OR the top date range is narrowing it
+function leadScoped(){return leadFilterActive() || RANGE!==0 || CUSTOM!=null;}
 function populateFilters(){
   const uniq=idx=>[...new Set(LEADS.map(r=>r[idx]).filter(v=>v!==''&&v!=null))].sort((a,b)=>(''+a).localeCompare(''+b));
   const fill=(id,vals)=>{const s=document.getElementById(id);vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o);});};
@@ -834,8 +836,11 @@ function filteredLeads(){
   const e=qval('qEmail'),pod=gval('qPod'),pa=gval('qPa'),st=gval('qStatus'),bk=gval('qBucket'),
         ql=gval('qQual'),tat=gval('qTat'),vcb=gval('qVcb'),sale=gval('qSale'),dcd=gval('qDcd'),rte=gval('qRte'),
         vd=gval('qVerdict');
-  if(!leadFilterActive()) return LEADS;
+  // apply the SAME date window as the rest of the console (by the lead's formatted date)
+  const ix=idxRange();
+  const winFrom=ix.length?DAYS[ix[0]]:null, winTo=ix.length?DAYS[ix[ix.length-1]]:null;
   return LEADS.filter(r=>
+    (winFrom==null || (r[LC.date]>=winFrom && r[LC.date]<=winTo)) &&
     (!e   || String(r[LC.email]).toLowerCase().includes(e)) &&
     (!pod || r[LC.pod]===pod) &&
     (!pa  || r[LC.pa]===pa) &&
@@ -870,7 +875,7 @@ function renderLeads(){
         <td>${yn(r[LC.vcb])}</td><td>${yn(r[LC.dcd])}</td><td>${yn(r[LC.rte])}</td><td>${yn(r[LC.sale])}</td>
         <td>${esc(VERDICT_LABELS[r[LC.verdict]]||'')}</td></tr>`;
     }).join('')+'</tbody>';
-  document.getElementById('leadCount').textContent=`${nf(total)} lead${total===1?'':'s'}${leadFilterActive()?' (filtered)':''}`;
+  document.getElementById('leadCount').textContent=`${nf(total)} lead${total===1?'':'s'}${leadScoped()?' (filtered)':''}`;
   const pg=document.getElementById('leadsPager');
   pg.innerHTML=`<button class="pgbtn" id="pgPrev" ${PAGE<=0?'disabled':''}>‹ Prev</button>
     <span class="hint num">Page ${PAGE+1} of ${nf(pages)}</span>
@@ -893,7 +898,7 @@ function exportCSV(){
   }).join(',')));
   const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=`ik-bot-leads-${leadFilterActive()?'filtered':'all'}-${isoOff(DAYS[ND-1])}.csv`;
+  a.download=`ik-bot-leads-${leadScoped()?'filtered':'all'}-${isoOff(DAYS[ND-1])}.csv`;
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
 }
 populateFilters();
@@ -1004,6 +1009,7 @@ function renderAll(){
   renderAttConn(LC.pod,'podAtt',{qual:document.getElementById('podQ').value});
   renderAttConn(LC.pa,'paAtt',{qual:document.getElementById('paQ').value,pod:document.getElementById('paPod').value});
   renderTrends();renderMixes();renderEvals();renderCRM();
+  if(typeof renderLeads==='function'){PAGE=0;renderLeads();}  // lead explorer follows the date range too
   const g=new Date(DATA.generated_at);
   document.getElementById('liveTxt').textContent='updated '+g.toLocaleDateString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
   document.getElementById('foot').innerHTML=`Source: <span class="num">ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</span> · ${nf(M.rows)} leads · rebuilt daily from BigQuery · generated ${DATA.generated_at}`;
