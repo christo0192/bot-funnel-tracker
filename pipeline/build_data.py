@@ -28,6 +28,31 @@ VIEW = "ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise"
 # one-line fix to the view's Step 4 is pending with the data team; once live this join can go.)
 CONTACTS = "ik-marketing-data.Sales_Dashboard.contacts"
 
+# VC Done (Bot Leads) — user decision 2026-10-30. Only VC-booked leads (phase2_outcome peak) can be
+# VC done. A booked lead is VC done once its HubSpot status MOVES ON after the booking: the first
+# Contacts row after this cycle's VC-scheduled row whose status is not VC scheduled / VC alt
+# scheduled / New*. That row's IST date is the event the console's date range gates on; the status
+# it moved to picks the breakdown group. Contacts is a sync log (repeated rows per contact, across
+# every registration cycle), so the anchor is the first VC row on/after this lead's lead_date; when
+# HubSpot never showed a VC status (~1%), the lead_date itself is the anchor.
+VC_BOOKED_PO = ("Bot Qualified – VC scheduled", "Bot Qualified – VC alt scheduled")
+VC_STATUSES = ("VC scheduled", "VC alt scheduled")
+IST = dt.timedelta(hours=5, minutes=30)  # Contacts.row_added_at is UTC
+VCD_GROUPS = ["RTE + FU + Enrolled", "DCD + PSA Qualified", "Unsuitable + Junk", "Rest NI"]
+_VCD_GROUP_OF = {
+    **dict.fromkeys(("Interested-Ready to enroll", "Interested - Follow-up", "Interested-Follow-up",
+                     "Follow Up", "Enrolled", "Interested-Enroll Later"), 0),
+    **dict.fromkeys(("Discovery call done", "Discovery_Call_Done", "PSA Qualified",
+                     "Cold PSA Qualified", "VC done"), 1),
+    **dict.fromkeys(("Not interested-Unsuitable profile", "Junk", "Old Inactive (DO NOT USE)"), 2),
+}
+def vcd_group(status):  # breakdown group index; anything unlisted (Not interested-*, ...) = Rest NI
+    return _VCD_GROUP_OF.get((status or "").strip(), 3)
+
+def vc_moved_on(status):  # status counts as "moved on" from the VC booking
+    s = (status or "").strip()
+    return bool(s) and s not in VC_STATUSES and not s.startswith("New")
+
 # ---- vocabularies (order matters; indices are the histogram layout) ----
 BUCKETS = ["Not Attempted", "Failed Calls Only", "Never Connected",
            "Connected 0 Answers", "Connected With Answers"]
@@ -116,7 +141,8 @@ XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den
          "retry","paOff","paAcc","paCall","paConn","dcd","vcDone","sale","wa","rte",
          "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
          "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte","vcBookF",
-         "vcBookNT","vcBookDQ","dqCWA","failNC"]
+         "vcBookNT","vcBookDQ","dqCWA","failNC",
+         "vcdG0","vcdG1","vcdG2","vcdG3"]  # VC Done (Bot Leads) per VCD_GROUPS group
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -215,6 +241,33 @@ def main():
     print("Scanning view (one pass)...", flush=True)
     rows = list(client.query(sql).result())
     print(f"Pulled {len(rows):,} rows", flush=True)
+
+    # VC Done (Bot Leads): Contacts status history for the VC-booked leads only (a few thousand
+    # rows), then the first moved-on status after each lead's booking (see VC_BOOKED_PO notes).
+    booked_ids = sorted({r["lead_email"].lower() for r in rows
+                         if r["phase2_outcome"] in VC_BOOKED_PO and r["lead_email"]})
+    hist_sql = f"""
+    SELECT LOWER(contact_id) AS em, row_added_at AS ts, lead_status AS st
+    FROM `{CONTACTS}` WHERE LOWER(contact_id) IN UNNEST(@ids)
+    ORDER BY em, ts
+    """
+    hist_cfg = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ArrayQueryParameter("ids", "STRING", booked_ids)])
+    status_hist = defaultdict(list)
+    for h in client.query(hist_sql, job_config=hist_cfg).result():
+        status_hist[h["em"]].append((h["ts"] + IST, h["st"]))
+    vc_done = {}  # (lead_email, lead_date) -> (IST date the status moved on, VCD_GROUPS index)
+    for r in rows:
+        if r["phase2_outcome"] not in VC_BOOKED_PO or not r["lead_email"]:
+            continue
+        hs = status_hist.get(r["lead_email"].lower(), [])
+        anchor = next((ts for ts, st in hs if st in VC_STATUSES and ts.date() >= r["lead_date"]),
+                      dt.datetime.combine(r["lead_date"], dt.time()))
+        moved = next(((ts, st) for ts, st in hs if ts > anchor and vc_moved_on(st)), None)
+        if moved:
+            vc_done[(r["lead_email"], r["lead_date"])] = (moved[0].date(), vcd_group(moved[1]))
+    print(f"VC booked {len(booked_ids):,} | VC done (bot leads) {len(vc_done):,} "
+          f"| contacts rows {sum(map(len, status_hist.values())):,}", flush=True)
 
     # day axis
     dates = sorted({r["lead_date"] for r in rows})
@@ -316,11 +369,15 @@ def main():
         sched_dates = [d for d in (r["vc_scheduled_date"], r["vc_alt_scheduled_date"]) if d is not None]
         vc_booked_date = min(sched_dates) if sched_dates else None
         vc_done_date = r["vc_done_date"]
-        # DATE-WISE VC done: the bot booked the VC and it was completed on/after that date.
+        # VC Done (Bot Leads): VC-booked lead whose Contacts status moved on after the booking.
+        vcd = vc_done.get((r["lead_email"], r["lead_date"]))
+        if vcd:
+            vec[X["vcDoneBot"]] += 1
+            vec[X[f"vcdG{vcd[1]}"]] += 1
+        # DATE-WISE VC done (vc_done_date on/after the booked slot) now only scopes the DCD/RTE
+        # edge case below, which the DCD / RTE tiles still show.
         done_bot = (vc_booked_date is not None and vc_done_date is not None
                     and vc_done_date >= vc_booked_date)
-        if done_bot:
-            vec[X["vcDoneBot"]] += 1
         if b(r["vc_done_flag"]) and is_q:
             vec[X["vcDoneQ"]] += 1
         # DATE-WISE edge case: bot booked the VC, it was NOT done (date-wise), and the PA
@@ -425,7 +482,9 @@ def main():
                  "maxans", "tat", "qual", "dq", "vcb", "dcd", "rte", "sale",
                  "paDials", "paConn", "paTalk",
                  "slotDay", "vcDoneDay", "dcdDay", "rteDay", "eligDq",
-                 "verdict"]  # LLM-judge verdict (cls_correct) for the lead-explorer filter
+                 "verdict",  # LLM-judge verdict (cls_correct) for the lead-explorer filter
+                 # VC Done (Bot Leads): peak-booked flag, IST day the status moved on, group index
+                 "vcbPeak", "vcdDay", "vcdGrp"]
     leads_out = []
     for r in rows:
         dq = 1 if is_dq(r) else 0
@@ -436,6 +495,7 @@ def main():
                       or (_reason is not None and _reason.startswith("Reason unclear"))) else 0
         _rteday = r["rte_moved_date_fixed"] or r["rte_moved_date"]  # corrected RTE date (contacts)
         _vcb = 1 if (b(r["vc_scheduled_flag"]) or b(r["vc_alt_scheduled_flag"])) else 0
+        _vcd = vc_done.get((r["lead_email"], r["lead_date"]))
         leads_out.append([
             r["lead_email"] or "", r["pod"] or "", r["pa_name"] or "", r["lead_status"] or "", r["bot_bucket"] or "",
             day_off[r["lead_date"]], doff(r["bot_first_attempt_date"]), doff(r["bot_last_contacted_date"]),
@@ -447,6 +507,8 @@ def main():
             r["pa_total_dials"] or 0, r["pa_connects_120s"] or 0, round(r["pa_connected_talk_mins"] or 0, 1),
             doff(_slot), doff(r["vc_done_date"]), doff(r["dcd_moved_date"]), doff(_rteday), _elig,
             r["cls_correct"] or "",
+            1 if r["phase2_outcome"] in VC_BOOKED_PO else 0,
+            doff(_vcd[0]) if _vcd else None, _vcd[1] if _vcd else None,
         ])
     # newest first (by lead_date) so the default view reads like recent activity
     leads_out.sort(key=lambda x: x[5], reverse=True)
@@ -463,7 +525,7 @@ def main():
         "days": days,
         "meta": {"rows": len(rows), "buckets": BUCKETS, "dq": DQ, "out": OUT,
                  "ttc": TTC, "bpa": BPA, "sg": SG, "att": ATT,
-                 "ev": EV, "evtag": EVTAG,
+                 "ev": EV, "evtag": EVTAG, "vcdg": VCD_GROUPS,
                  "X": XCOLS, "LX": LXCOLS, "M": M, "LM": LM},
         "daily": daily,
         "dims": {name: {"v": dims[name]["labels"], "d": dims[name]["d"]} for name in dims},
@@ -479,7 +541,7 @@ def main():
     print(f"Wrote {outpath}", flush=True)
     print(f"Totals: leads={tot[X['leads']]:,} att={tot[X['att']]:,} conn={tot[X['conn']]:,} "
           f"qual={tot[X['qual']]:,} dq={tot[X['dq']]:,} sale={tot[X['sale']]:,} "
-          f"vcDone={tot[X['vcDone']]:,} days={ND}", flush=True)
+          f"vcDone={tot[X['vcDone']]:,} vcDoneBot={tot[X['vcDoneBot']]:,} days={ND}", flush=True)
 
 if __name__ == "__main__":
     main()
