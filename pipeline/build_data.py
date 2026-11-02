@@ -53,6 +53,17 @@ def vc_moved_on(status):  # status counts as "moved on" from the VC booking
     s = (status or "").strip()
     return bool(s) and s not in VC_STATUSES and not s.startswith("New")
 
+# VC attempted, not done yet — user decision 2026-11-02. A VC-booked lead that is NOT VC done by the
+# range end and whose Contacts status ON the range end is a New* status (the slot came and went and
+# the lead fell back to New). Booked leads still at VC scheduled / alt on that day are "upcoming".
+# Each booked lead carries a status timeline (booking -> just before it moved on), coded per day:
+# 0 = VC scheduled / alt, k >= 1 = VCN_STATUSES[k-1]; the console reads the code in force on To.
+VCN_STATUSES = ["New-Call me later", "New-Non contact", "New", "New-New", "New-Step 2 Funnel Exit",
+                "New (other)"]  # any other New* status lands in the last bucket
+def vcn_code(status):
+    s = (status or "").strip()
+    return 1 + (VCN_STATUSES.index(s) if s in VCN_STATUSES[:-1] else len(VCN_STATUSES) - 1)
+
 # ---- vocabularies (order matters; indices are the histogram layout) ----
 BUCKETS = ["Not Attempted", "Failed Calls Only", "Never Connected",
            "Connected 0 Answers", "Connected With Answers"]
@@ -142,7 +153,10 @@ XCOLS = ["leads","att","conn","conn0","ans1","ans6","qual","dq","vcS","vcA","den
          "attSum","ansSum","comp","qNoPa","qDcd","qSale","qPaConn","connSale",
          "dcdQ","dcdDQ","rteQ","rteDQ","vcDoneBot","vcDoneQ","vcEdgeDcd","vcEdgeRte","vcBookF",
          "vcBookNT","vcBookDQ","dqCWA","failNC",
-         "vcdG0","vcdG1","vcdG2","vcdG3"]  # VC Done (Bot Leads) per VCD_GROUPS group
+         "vcdG0","vcdG1","vcdG2","vcdG3",  # VC Done (Bot Leads) per VCD_GROUPS group
+         # VC attempted, not done yet (latest status; the console re-gates to the range end):
+         # vcAtt = booked, not done, status New*; vcnG<i> per VCN_STATUSES; vcSched = still VC sched/alt
+         "vcAtt","vcSched","vcnG0","vcnG1","vcnG2","vcnG3","vcnG4","vcnG5"]
 X = {k: i for i, k in enumerate(XCOLS)}
 M = len(XCOLS)
 # ---- per-dimension metric layout LX (10) ----
@@ -257,15 +271,31 @@ def main():
     for h in client.query(hist_sql, job_config=hist_cfg).result():
         status_hist[h["em"]].append((h["ts"] + IST, h["st"]))
     vc_done = {}  # (lead_email, lead_date) -> (IST date the status moved on, VCD_GROUPS index)
+    vc_tl = {}    # (lead_email, lead_date) -> [(IST date, VC/New code)] from booking until moved on
     for r in rows:
         if r["phase2_outcome"] not in VC_BOOKED_PO or not r["lead_email"]:
             continue
         hs = status_hist.get(r["lead_email"].lower(), [])
-        anchor = next((ts for ts, st in hs if st in VC_STATUSES and ts.date() >= r["lead_date"]),
-                      dt.datetime.combine(r["lead_date"], dt.time()))
+        anchor_vc = next((ts for ts, st in hs if st in VC_STATUSES and ts.date() >= r["lead_date"]), None)
+        anchor = anchor_vc or dt.datetime.combine(r["lead_date"], dt.time())
         moved = next(((ts, st) for ts, st in hs if ts > anchor and vc_moved_on(st)), None)
+        key = (r["lead_email"], r["lead_date"])
         if moved:
-            vc_done[(r["lead_email"], r["lead_date"])] = (moved[0].date(), vcd_group(moved[1]))
+            vc_done[key] = (moved[0].date(), vcd_group(moved[1]))
+        # Timeline of the VC / New* statuses between the booking and the move-on (last status of
+        # each day wins; consecutive repeats collapse). Every status in that window is VC or New*.
+        tl = [(anchor_vc.date(), 0)] if anchor_vc else []
+        for ts, st in hs:
+            if ts <= anchor or not (st or "").strip():
+                continue
+            if moved and ts >= moved[0]:
+                break
+            code = 0 if st in VC_STATUSES else vcn_code(st)
+            if tl and tl[-1][0] == ts.date():
+                tl.pop()
+            if not tl or tl[-1][1] != code:
+                tl.append((ts.date(), code))
+        vc_tl[key] = tl
     print(f"VC booked {len(booked_ids):,} | VC done (bot leads) {len(vc_done):,} "
           f"| contacts rows {sum(map(len, status_hist.values())):,}", flush=True)
 
@@ -374,6 +404,15 @@ def main():
         if vcd:
             vec[X["vcDoneBot"]] += 1
             vec[X[f"vcdG{vcd[1]}"]] += 1
+        elif po in VC_BOOKED_PO:
+            # booked, not done yet: latest timeline code says New* (attempted) or VC (upcoming)
+            tl = vc_tl.get((r["lead_email"], r["lead_date"])) or []
+            code = tl[-1][1] if tl else 0
+            if code:
+                vec[X["vcAtt"]] += 1
+                vec[X[f"vcnG{code - 1}"]] += 1
+            else:
+                vec[X["vcSched"]] += 1
         # DATE-WISE VC done (vc_done_date on/after the booked slot) now only scopes the DCD/RTE
         # edge case below, which the DCD / RTE tiles still show.
         done_bot = (vc_booked_date is not None and vc_done_date is not None
@@ -484,7 +523,9 @@ def main():
                  "slotDay", "vcDoneDay", "dcdDay", "rteDay", "eligDq",
                  "verdict",  # LLM-judge verdict (cls_correct) for the lead-explorer filter
                  # VC Done (Bot Leads): peak-booked flag, IST day the status moved on, group index
-                 "vcbPeak", "vcdDay", "vcdGrp"]
+                 "vcbPeak", "vcdDay", "vcdGrp",
+                 # VC attempted, not done yet: [[day, code], ...] booking -> move-on (see VCN_STATUSES)
+                 "vcTl"]
     leads_out = []
     for r in rows:
         dq = 1 if is_dq(r) else 0
@@ -509,6 +550,7 @@ def main():
             r["cls_correct"] or "",
             1 if r["phase2_outcome"] in VC_BOOKED_PO else 0,
             doff(_vcd[0]) if _vcd else None, _vcd[1] if _vcd else None,
+            [[doff(d), c] for d, c in vc_tl.get((r["lead_email"], r["lead_date"]), [])] or None,
         ])
     # newest first (by lead_date) so the default view reads like recent activity
     leads_out.sort(key=lambda x: x[5], reverse=True)
@@ -525,7 +567,7 @@ def main():
         "days": days,
         "meta": {"rows": len(rows), "buckets": BUCKETS, "dq": DQ, "out": OUT,
                  "ttc": TTC, "bpa": BPA, "sg": SG, "att": ATT,
-                 "ev": EV, "evtag": EVTAG, "vcdg": VCD_GROUPS,
+                 "ev": EV, "evtag": EVTAG, "vcdg": VCD_GROUPS, "vcn": VCN_STATUSES,
                  "X": XCOLS, "LX": LXCOLS, "M": M, "LM": LM},
         "daily": daily,
         "dims": {name: {"v": dims[name]["labels"], "d": dims[name]["d"]} for name in dims},

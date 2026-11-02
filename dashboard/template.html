@@ -188,6 +188,39 @@ svg{display:block;width:100%;overflow:visible}
 .arow .bn{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .arow .av{text-align:right;color:var(--ink);font-size:12px;font-variant-numeric:tabular-nums}
 footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
+/* How to read this console — every rule is scoped under .howto and uses only the page's tokens */
+.howto{padding:16px 18px 10px}
+.howto p{margin:6px 0 10px;color:var(--ink-2);font-size:13px;line-height:1.55}
+.howto p b,.howto li b{color:var(--ink)}
+.howto ul{margin:4px 0 10px;padding-left:20px;color:var(--ink-2);font-size:13px;line-height:1.55}
+.howto li{margin:3px 0}
+.howto h4{margin:14px 0 6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:640}
+.howto .idx{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
+.howto .idx a{font-size:12px;text-decoration:none;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:3px 10px}
+.howto .idx a:hover,.howto .idx a:focus-visible{text-decoration:underline}
+.howto details{border-top:1px solid var(--line)}
+.howto details:last-of-type{border-bottom:1px solid var(--line)}
+.howto summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:11px 2px;font-size:14px;font-weight:640;color:var(--ink)}
+.howto summary::-webkit-details-marker{display:none}
+.howto summary::before{content:"\25B8";color:var(--accent);font-size:11px;transition:transform .15s}
+.howto details[open]>summary::before{transform:rotate(90deg)}
+.howto summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.howto .body{padding:0 2px 14px}
+.howto .note{border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0;padding:8px 12px;margin:8px 0 12px;font-size:12.5px;line-height:1.5;color:var(--ink)}
+.howto .scroll{margin:4px 0 8px;border:1px solid var(--line);border-radius:var(--radius)}
+.howto table{min-width:880px;table-layout:fixed;border-collapse:collapse;font-size:12.5px}
+.howto th,.howto td{text-align:left;vertical-align:top;white-space:normal;overflow-wrap:break-word;word-break:normal;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink);line-height:1.45}
+.howto thead th{position:static;cursor:default;user-select:text;text-transform:none;letter-spacing:0;font-size:11.5px;font-weight:640;color:var(--ink-3);background:var(--surf)}
+.howto th:nth-child(1){width:16%}
+.howto th:nth-child(2){width:24%}
+.howto th:nth-child(3){width:36%}
+.howto th:nth-child(4){width:24%}
+.howto td:first-child{font-weight:600}
+.howto td:nth-child(2){color:var(--ink-2)}
+.howto tbody tr:last-child td{border-bottom:0}
+.howto code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11.5px;background:var(--accent-soft);color:var(--ink);border-radius:4px;padding:0 4px;overflow-wrap:anywhere}
+@media (max-width:640px){.howto{padding:14px 12px 8px}.howto table{min-width:720px}}
+@media (prefers-reduced-motion:reduce){.howto summary::before{transition:none}}
 </style>
 
 <div class="wrap">
@@ -301,6 +334,702 @@ footer{margin-top:30px;color:var(--ink-3);font-size:11.5px;text-align:center}
     <div class="pager" id="leadsPager"></div>
   </div>
 
+  <div class="sectionlabel" id="howto">How to read this console</div>
+  <div class="card howto">
+    <p>This section explains every number on the console: what it means in business terms, the exact rule behind it, and the BigQuery columns it comes from. It describes the logic of today's build (<code>dashboard/template.html</code> and <code>pipeline/build_data.py</code>). It quotes no figures, because every number changes with each daily refresh.</p>
+    <p>Three ideas answer most questions. <b>(1)</b> A "lead" is one email address at its newest MasterClass registration, and every panel picks leads by that registration's <b>lead date</b>. <b>(2)</b> Most counts are "ever, up to the latest refresh": a call, answer, status or sale made after the selected range still counts for that range's leads. Only a few HubSpot-driven figures are cut off at the <b>range end</b> (§2). <b>(3)</b> Percentages do not all share the same base, so §2 lists the base of every one.</p>
+    <div class="idx">
+      <a href="#howto-sources">1 · Data sources &amp; refresh</a>
+      <a href="#howto-range">2 · Date range &amp; percentages</a>
+      <a href="#howto-kpis">3 · KPI tiles</a>
+      <a href="#howto-funnel">4 · Funnel stages by segment</a>
+      <a href="#howto-qual">5 · Qualification panels</a>
+      <a href="#howto-calls">6 · Calls &amp; connects</a>
+      <a href="#howto-crm">7 · CRM pipeline stage</a>
+      <a href="#howto-evals">8 · Bot Evals</a>
+      <a href="#howto-explorer">9 · Lead explorer</a>
+      <a href="#howto-limits">10 · Known limitations</a>
+    </div>
+  
+    <!-- ============================== 1 ============================== -->
+    <details id="howto-sources" open>
+      <summary>1 · Data sources &amp; refresh</summary>
+      <div class="body">
+        <p>The page is static. A pipeline reads BigQuery, computes every figure, writes <code>data.json</code> and bakes it into this page. It runs every day at about 10:00 IST and again at about 13:00 IST (see Daily refresh below). Nothing queries BigQuery while you browse, so the numbers only change at the next refresh. The chain: view <code>ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</code> → <code>pipeline/build_data.py</code> → <code>main()</code> (two BigQuery queries: one scan of the view with a Contacts subquery LEFT JOINed in for the corrected RTE date, and one Contacts query for the status history of the VC-booked leads) → <code>data.json</code> → <code>pipeline/inject.py</code> (fills the data placeholder in the <code>botdata</code> script block of <code>dashboard/template.html</code>, escaping every <code>&lt;</code> in the data, and writes <code>site/index.html</code> plus a copy at <code>dashboard/console.html</code>) → Vercel (deploys <code>site/</code>).</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>One lead (one row of the view)</td>
+              <td>One email address at its newest MasterClass registration, inside a rolling window of roughly the last three to four months. Older registrations of the same email are dropped, and a re-registration moves the lead to its newer date.</td>
+              <td>View CTE <code>lead_base</code>: <code>FROM L10X_india_leads WHERE lead_email IS NOT NULL AND LOWER(webinar_type) LIKE '%masterclass%' AND lead_month &gt;= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH), MONTH)</code>, then <code>QUALIFY ROW_NUMBER() OVER (PARTITION BY lead_email ORDER BY Lead_created_time DESC) = 1</code>. The filters run before the de-duplication, so the row kept is the newest MasterClass registration inside the window. Every other source is LEFT JOINed onto that row on <code>LOWER(lead_email)</code>. <code>build_data.py</code> adds <code>WHERE v.lead_date IS NOT NULL</code>. The window starts on the 1st of the month three months before the build date, so a whole month drops out at each month change.</td>
+              <td><code>lead_email</code> (the HubSpot contact id), <code>lead_date</code> (= L10X <code>formatted_date</code>), <code>lead_month</code>; the view uses L10X <code>Lead_created_time</code> internally as <code>lead_created_ist</code>. Source: <code>ik-marketing-data.India_Leads.L10X_india_leads</code>.</td></tr>
+            <tr><td>Bot calls (qualification bot)</td>
+              <td>The AI voice bot's calls to the lead, made after this registration was created.</td>
+              <td>View CTE <code>bot_calling_all</code>: <code>ai_agent_calling</code> rows with <code>voicebot_usecase = 'qualification_bot'</code> and <code>contact_id IS NOT NULL</code>, joined <code>LOWER(lead_email) = LOWER(contact_id)</code> AND <code>DATETIME(TIMESTAMP(webinar_last_call_date),'Asia/Kolkata') &gt;= lead_created_ist</code>, so calls made before this registration are ignored. Then <code>LEFT JOIN</code> the outcome table <code>ON vapi_call_id = call_id</code>. A call is <b>failed</b> (<code>is_failed_call = 1</code>) when <code>LOWER(webinar_pa_notes)</code> contains <code>'sip-outbound-call-failed-to-connect'</code> or <code>'silence-timed-out'</code>. The calls are summarised per lead in CTE <code>bot_summary</code>.</td>
+              <td><code>bot_attempted</code>, <code>total_call_attempts</code>, <code>bot_connected</code>, <code>total_connected_calls</code>, <code>bot_bucket</code>, <code>best_questions_answered</code>, <code>bot_first_attempt_date</code> … Source: <code>ik-marketing-data.Sales_Dashboard.ai_agent_calling</code>.</td></tr>
+            <tr><td>Bot outcome, DQ reason &amp; judge verdict (the "peak" call)</td>
+              <td>For outcome-type fields the console uses one representative call per lead: the one with the best outcome.</td>
+              <td><code>bot_summary.peak</code> = <code>ARRAY_AGG</code> over the lead's calls with <code>phase2_outcome IS NOT NULL</code>, ordered by rank: <code>LOWER(phase2_outcome) LIKE '%bot qualified%'</code> → 1, <code>'PA_Call_Booked'</code> → 2, <code>'DISQUALIFIED'</code> → 3, <code>'Cold_MC_Directed'</code> → 4, <code>'Fallback_Phase1'</code> → 5, <code>'Not_Triggered'</code> → 6, anything else → 7; then <code>created_at DESC</code>; <code>LIMIT 1</code>. Every "Bot Qualified…" variant shares rank 1, so the <b>most recent</b> bot-qualified outcome wins. The view also has <code>_latest</code> columns; the console never reads them.</td>
+              <td><code>phase2_outcome_peak</code>, <code>disqualification_reason_peak</code>, <code>classification_correctness_peak</code>, <code>classification_issue_tags_peak</code>. <code>build_data.py</code> renames them to <code>phase2_outcome</code>, <code>disqualification_reason</code>, <code>cls_correct</code> and <code>cls_tags</code>. Source: <code>ik-marketing-data.Sales_Dashboard.india_qualification_voice_bot_calling_outcome</code>.</td></tr>
+            <tr><td>HubSpot lead status (Contacts)</td>
+              <td>The CRM status of the lead and the dates it reached certain statuses. Contacts is a sync log: the same contact appears in many rows, across every registration cycle.</td>
+              <td>In the view, all joined <code>LOWER(lead_email) = LOWER(contact_id)</code> over the contact's whole history:<br>• <code>lead_status</code> = the status on the latest row (<code>ROW_NUMBER() OVER (PARTITION BY contact_id ORDER BY row_added_at DESC) = 1</code>).<br>• <code>dcd_moved_date</code> = <code>DATE(MAX(row_added_at))</code> where <code>LOWER(lead_status) IN ('discovery call done','discovery_call_done')</code>.<br>• <code>rte_moved_date</code> = <code>DATE(MAX(row_added_at))</code> where <code>LOWER(lead_status)</code> is <code>LIKE '%ready to enroll%'</code>, <code>'%interested-ready%'</code> or <code>'%interested - ready%'</code>.<br>• <code>vc_done_flag</code> / <code>vc_done_date</code> come from rows with <code>LOWER(lead_status) = 'vc done'</code>, the date being the latest one.<br><code>build_data.py</code> → <code>main()</code> also reads Contacts directly, in two places. (a) A subquery LEFT JOINed into the view scan: <code>rte_moved_date_fixed</code> = <code>DATE(MAX(row_added_at))</code> where <code>LOWER(lead_status)</code> is <code>LIKE '%ready to enroll%'</code>, <code>'%interested - follow-up%'</code> or <code>'%interested-ready%'</code>, joined on <code>LOWER(lead_email)</code>. (b) A separate query for the full status history of every VC-booked lead, which drives VC Done and VC attempted (§3).</td>
+              <td><code>lead_status</code>, <code>dcd_moved_date</code>, <code>rte_moved_date</code>, <code>vc_done_flag</code>, <code>vc_done_date</code>; raw <code>contact_id</code>, <code>row_added_at</code>, <code>lead_status</code>. Source: <code>ik-marketing-data.Sales_Dashboard.contacts</code>.</td></tr>
+            <tr><td>L10X flags &amp; owner (DCD / RTE / Sale / PA / Pod)</td>
+              <td>Funnel flags and the owner fields are inherited from the L10X lead view, not computed by the console.</td>
+              <td>• <code>dcd_flag</code> = <code>COALESCE(DCD_Flag,0)</code>. L10X sets it as <code>MAX(LOWER(lead_status) = 'discovery call done')</code> over every Contacts row of the contact.<br>• <code>rte_flag</code> = <code>COALESCE(RTE_Flag,0)</code>. L10X sets it as <code>MAX(LOWER(lead_status) LIKE '%ready to enroll%' OR LIKE '%interested - follow-up%')</code>.<br>Both L10X joins are exact, case-sensitive matches of <code>hubspot_id = contact_id</code>.<br>• <code>sale_flag</code> = 1 when L10X <code>sale_email_1 IS NOT NULL</code>. L10X keeps <code>sale_email_1</code> only on <code>rank_date = 1</code> rows.<br>• <code>pa_name</code> = L10X <code>PA_name</code>, the <code>contact_owner_name</code> on the contact's latest Contacts row.<br>• <code>pod</code> = L10X <code>POD</code>: <code>'Unassigned'</code> when that owner is blank, otherwise the pod mapped on <code>LOWER(TRIM(pa_name))</code>, which is empty when the PA is not in the mapping.</td>
+              <td><code>dcd_flag</code>, <code>rte_flag</code>, <code>sale_flag</code>, <code>pa_name</code>, <code>pod</code>. Sources: <code>ik-marketing-data.India_Leads.L10X_india_leads</code>, <code>ik-marketing-data.Sales_Dashboard.contacts</code>, <code>ik-marketing-data.India_Leads.US_Domain_combined_view</code>, <code>ik-marketing-data.India_Leads.PA_POD_Mapping_India</code>.</td></tr>
+            <tr><td>PA (human) calls</td>
+              <td>Calls logged by PAs (dials, connects, talk time) to the lead after it was created.</td>
+              <td>View CTE <code>pa_calls</code>: <code>call_metadata</code> joined <code>LOWER(lead_email) = LOWER(hubspot_id)</code> AND <code>DATETIME(timestamp,'Asia/Kolkata') &gt;= lead_created_ist</code>, <code>WHERE hubspot_id IS NOT NULL</code>, <code>GROUP BY hubspot_id</code>.<br>• <code>pa_total_dials = COUNT(call_id)</code><br>• <code>pa_connects_120s = COUNTIF(duration &gt; 120)</code><br>• <code>pa_connected_talk_mins = ROUND(SUM(duration where &gt; 120)/60, 1)</code><br>No filter on caller type.</td>
+              <td><code>pa_total_dials</code>, <code>pa_connects_120s</code>, <code>pa_connected_talk_mins</code>. Source: <code>ik-marketing-data.Marketing_data_new_logic.call_metadata</code>.</td></tr>
+            <tr><td>Daily refresh</td>
+              <td>The console is rebuilt twice a day, at about 10:00 IST and again at about 13:00 IST. Between refreshes the numbers do not change.</td>
+              <td>GitHub Actions workflow "Refresh IK Bot Console" (<code>.github/workflows/refresh.yml</code>).<br>• <b>Primary trigger: 10:00 IST.</b> An external cron service (cron-job.org) calls the workflow via <code>workflow_dispatch</code>. This comes from the workflow's comments; the trigger itself lives outside the repo.<br>• <b>Second run: 13:00 IST.</b> GitHub <code>schedule</code> <code>cron: "30 7 * * *"</code> (07:30 UTC). The comments call it a fallback, but nothing checks whether the 10:00 run happened, so it runs every day and rebuilds the page a second time (the "updated" pill then shows the later time). GitHub starts scheduled runs on a best-effort basis, often some minutes late.<br>Runs share concurrency group <code>refresh</code>, so they never overlap. Steps: <code>python pipeline/build_data.py --out data.json</code> → <code>python pipeline/inject.py</code> → <code>vercel deploy --prod</code>. Each run rebuilds the whole window from scratch. If a step fails, the deploy step does not run and the previous version stays live.</td>
+              <td>Reads every table in this list; writes <code>data.json</code> → <code>site/index.html</code>.</td></tr>
+            <tr><td>"updated DD Mon, hh:mm" pill (header)</td>
+              <td>When this copy of the data was built. It is <b>not</b> when the source tables were last loaded.</td>
+              <td>The text is <code>'updated ' + generated_at</code>, formatted with <code>toLocaleDateString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})</code> in the viewer's own time zone. <code>generated_at</code> is the UTC time at which <code>build_data.py</code> wrote <code>data.json</code>. The pill reads "live" only until the page script runs.</td>
+              <td><code>data.json</code> → <code>generated_at</code> (<code>pipeline/build_data.py</code> → <code>main()</code>); rendered by <code>renderAll()</code>.</td></tr>
+            <tr><td>Footer: "Source: … · N leads · rebuilt daily from BigQuery · generated …"</td>
+              <td>Provenance: the source view, how many leads the whole build holds, and the raw build timestamp.</td>
+              <td>N = every row the build pulled, i.e. the whole window. It ignores the date range. "generated" is the raw ISO UTC string (it ends in <code>+00:00</code>). The footer names only the view, but <code>build_data.py</code> also reads <code>Sales_Dashboard.contacts</code> directly.</td>
+              <td><code>data.json</code> → <code>meta.rows</code>, <code>generated_at</code>.</td></tr>
+            <tr><td>Time zones (IST conversion)</td>
+              <td>Which clock each date follows.</td>
+              <td>• <b>Bot call times</b>: <code>DATETIME(TIMESTAMP(webinar_last_call_date),'Asia/Kolkata')</code>, so the bot dates are IST.<br>• <b>PA call times</b>: <code>DATETIME(timestamp,'Asia/Kolkata')</code>, also IST.<br>• <b>Contacts</b>: <code>row_added_at</code> is UTC. <code>build_data.py</code> adds +5:30 for VC Done / VC attempted, which therefore use IST. The view's <code>DATE(row_added_at)</code> dates (<code>dcd_moved_date</code>, <code>rte_moved_date</code>, <code>vc_done_date</code>) and <code>rte_moved_date_fixed</code> are UTC calendar dates.<br>• <b>VC slot date</b>: <code>DATE(SAFE_CAST(verified_slot AS TIMESTAMP))</code>, a UTC date.<br>• <b>Lead creation time</b>: L10X <code>Lead_created_time</code>, which the view treats as IST (<code>lead_created_ist</code>). L10X is not consistent about this: its <code>incident_leads</code> CTE adds 330 minutes to the same source column to get IST, as if it were UTC. The console does not check which is right; if it is UTC, the "after this registration" cut-off for bot and PA calls is 5½ hours too early.<br>• <b>Labels</b>: the browser turns day numbers (UTC midnights) into date labels in the viewer's local time zone. Viewers in India see the right dates, but a viewer west of UTC (for example in the Americas) sees every label one day early. The date pickers and the CSV export use UTC dates and are not affected.</td>
+              <td>View CTEs <code>bot_calling_all</code>, <code>pa_calls</code>, Steps 3–5; <code>build_data.py</code> constant <code>IST</code>.</td></tr>
+          </tbody>
+        </table></div>
+        <h4>Every BigQuery table involved</h4>
+        <ul>
+          <li><code>ik-marketing-data.India_Leads.Bot_Calling_Phase2_leadwise</code>: the view the console is built on, scanned once per refresh.</li>
+          <li><code>ik-marketing-data.Sales_Dashboard.contacts</code>, used in three places:<br>• inside the view: lead status and status dates;<br>• inside L10X: DCD/RTE flags and PA owner;<br>• queried directly by <code>build_data.py</code>: the RTE date fix, and the status history behind VC Done / VC attempted.</li>
+          <li><code>ik-marketing-data.India_Leads.L10X_india_leads</code>: lead base and attributes.</li>
+          <li><code>ik-marketing-data.Sales_Dashboard.ai_agent_calling</code>: bot calls.</li>
+          <li><code>ik-marketing-data.Sales_Dashboard.india_qualification_voice_bot_calling_outcome</code>: per-call outcome, DQ reason, questions answered, verified VC slot, LLM-judge verdict and tags.</li>
+          <li><code>ik-marketing-data.Marketing_data_new_logic.call_metadata</code>: PA (human) calls.</li>
+          <li>Upstream of L10X, for columns the console uses:<br>• <code>ik-marketing-data.India_Leads.US_Domain_combined_view</code>: registrations and <code>sale_email_1</code>;<br>• <code>ik-marketing-data.India_Leads.PA_POD_Mapping_India</code>: PA → Pod.<br>L10X also reads <code>ik-marketing-data.Tech_ML_Projects.lead_history</code> and <code>call_metadata</code> for columns the console does not use.</li>
+        </ul>
+      </div>
+    </details>
+  
+    <!-- ============================== 2 ============================== -->
+    <details id="howto-range">
+      <summary>2 · Date range &amp; percentages</summary>
+      <div class="body">
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>7d / 15d / 30d / 90d / All</td>
+              <td>Chooses which leads every panel counts, by lead date. <b>All</b> (the default) counts every lead in the build, i.e. the rolling window from §1, not all history. The presets count back from the <b>latest lead date in the data</b>, not from today.</td>
+              <td><code>idxRange()</code>: <code>last</code> = the latest lead date in the build. A preset of N keeps the lead days dated ≥ <code>last − N + 1</code>, i.e. the N calendar days ending on <code>last</code>. Calendar days with no leads simply add nothing. Clicking a preset clears any custom dates.</td>
+              <td><code>lead_date</code> (L10X <code>formatted_date</code>).</td></tr>
+            <tr><td>From → To date pickers (✕ clears)</td>
+              <td>A custom window, inclusive at both ends.</td>
+              <td><code>applyCustom()</code> runs only once both dates are set. It swaps them if From is after To. The inputs accept only dates between the first and the latest lead date in the build. It keeps lead days with From ≤ day ≤ To. ✕ clears both dates and returns to All.</td>
+              <td><code>lead_date</code>.</td></tr>
+            <tr><td>"Showing N active days (label) · N leads."</td>
+              <td>How many days the window covers, a label for it, and the total leads in it.</td>
+              <td>An <b>active day</b> is a lead date with at least one lead. The label is "DD Mon – DD Mon" for a custom range, "last N days" for a preset, or "all time" for All. "N leads" equals the Total leads tile.</td>
+              <td><code>renderAll()</code>.</td></tr>
+            <tr><td>Lead-date basis (every panel)</td>
+              <td>The console is a <b>cohort view</b>. A lead belongs to the range of its lead date, wherever its calls, answers, statuses or sale fall in time. Recent days therefore keep growing as later activity arrives with each refresh.</td>
+              <td>Two mechanisms, same selection. Most panels add up per-day vectors over the kept days (<code>sumDaily</code>, <code>sumHist</code>, <code>sumDim</code>); the trend charts and sparklines plot each kept day's own values instead. The Pod-wise / PA-wise panels, the funnel table's gated and Cur DCD / Cur RTE columns, the CRM table, the lead explorer and the gated KPI counts filter lead rows whose lead date is one of the kept days.</td>
+              <td><code>data.json</code> → <code>daily</code>, <code>hist</code>, <code>dims</code>, <code>leads</code>.</td></tr>
+            <tr><td>Range end</td>
+              <td>The cut-off date for the event-gated metrics below.</td>
+              <td>The <b>last active lead day in the selected window</b> (<code>DAYS[ix[ix.length-1]]</code> in <code>patchGated()</code> and <code>renderFunnelTable()</code>). It is not today, and it is not the calendar To you picked: if To has no leads, the previous lead day is used. Events dated after it are not counted, even on All.</td>
+              <td><code>dashboard/template.html</code> → <code>patchGated()</code>, <code>gatedFromTo()</code>, <code>leadGate()</code>.</td></tr>
+            <tr><td>Event-date gated metrics</td>
+              <td>These count a lead only if its lead date is in the range <b>and</b> the HubSpot event has happened by the range end.</td>
+              <td>• <b>VC Done (Bot Leads)</b> and its 4 lines.<br>• <b>VC attempted, not done yet</b>, its New lines and its "+ still VC scheduled / alt" line.<br>• <b>DCD flag</b> and its 3 splits.<br>• <b>RTE flag</b> and its 3 splits.<br>• Funnel-table columns <b>VC done (bot)</b>, <b>DCD flag</b>, <b>Bot DCD</b>, <b>RTE flag</b> and <b>Bot RTE</b>.<br>A DCD/RTE lead whose status date is empty passes the gate.</td>
+              <td><code>leadGate()</code>: <code>vcdDay</code> (IST), <code>vcTl</code>, <code>dcdDay</code> (= <code>dcd_moved_date</code>), <code>rteDay</code> (= <code>rte_moved_date_fixed</code>, else <code>rte_moved_date</code>), <code>slotDay</code>, <code>vcDoneDay</code>.</td></tr>
+            <tr><td>Not gated</td>
+              <td>These count every lead in the range, whenever the event happened, up to the latest refresh.</td>
+              <td>• <b>VC booked</b>: deliberately not gated (owner decision).<br>• <b>Sale</b>.<br>• Every bot metric (attempted, connected, qualified, DQ, outcomes, judge).<br>• <b>Cur DCD / Cur RTE</b> and the CRM table: status at refresh time.<br>• Every lead-explorer column and filter.</td>
+              <td>—</td></tr>
+            <tr><td>◐ (theme button)</td>
+              <td>Switches light / dark. It does not change any number.</td>
+              <td>Sets <code>data-theme</code> on the page and redraws.</td>
+              <td>—</td></tr>
+          </tbody>
+        </table></div>
+        <div class="note">The header note "One denominator — every headline percentage is a share of Leads" is <b>not true for every tile</b>. The owner has chosen to leave the note unchanged; use the list below for each tile's real base. In a sub-line, "Leads" means Total leads in the selected range.</div>
+        <h4>Base of every KPI tile percentage</h4>
+        <ul>
+          <li><b>Total leads</b>: no percentage.</li>
+          <li><b>Attempted</b>: Attempted ÷ Total leads ("of leads").</li>
+          <li><b>Connected</b>: Connected ÷ Total leads.</li>
+          <li><b>Connected · 0 answer</b>: ÷ <b>Connected</b> ("of connected").</li>
+          <li><b>Connected · ≥1 answer</b>: ÷ <b>Connected</b>.</li>
+          <li><b>Failed / Never connected</b>: ÷ Total leads.</li>
+          <li><b>Bot qualified</b>: ÷ <b>Connected · ≥1 answer</b>.</li>
+          <li><b>Bot disqualified</b>: ÷ <b>Connected · ≥1 answer</b>.</li>
+          <li><b>VC booked</b>: ÷ <b>Bot qualified</b> ("of qualified").</li>
+          <li><b>VC Done (Bot Leads)</b>: ÷ <b>VC booked</b>. The numerator is gated; the base is not.</li>
+          <li><b>VC attempted, not done yet</b>: ÷ <b>VC booked</b>.</li>
+          <li><b>DCD flag</b>: ÷ Total leads.</li>
+          <li><b>RTE flag</b>: ÷ Total leads.</li>
+          <li><b>Sale</b>: bot-funnel sales ÷ Total leads.</li>
+        </ul>
+        <p>Percentages show one decimal place. When a tile's base is 0 its sub-line shows "–"; tiles based on Total leads show 0.0% instead.</p>
+        <h4>Other percentages on the page</h4>
+        <ul>
+          <li><b>Disqualification reasons</b>: the header % is ÷ Total leads. Each bar's % is ÷ the sum of the bars shown.</li>
+          <li><b>Qualified — what happens next</b>: the header % is ÷ Total leads. Each bar's % is ÷ the sum of the bars shown.</li>
+          <li><b>Qualification drivers</b>: every % is ÷ that segment's leads.</li>
+          <li><b>Pod-wise / PA-wise</b>: bar widths are ÷ that segment's leads. The averages are ÷ that segment's PA-dialled leads.</li>
+          <li><b>Time to first connect</b>: ÷ the sum of the bars shown, and that sum includes "Not Connected". Only 'a: 0–5 min' and 'Not Connected' match the pipeline's bucket list, so most connected leads are missing from both the bars and the base (known issue, §10).</li>
+          <li><b>Trends</b>: Daily connect rate = each day's Connected ÷ that day's leads. Qualification &amp; disqualification rate = each day's Bot qualified (or Bot disqualified) ÷ that day's leads, then averaged with the rates of up to 6 earlier active days in the range (a trailing 7-point mean of daily rates, shorter at the start of the range).</li>
+          <li><b>Bot Evals</b>:<br>• Correct classification = agreed ÷ (agreed + wrongly qualified + wrongly disqualified);<br>• verdict bars ÷ leads judged;<br>• tag bars ÷ leads with ≥1 recognised tag;<br>• outcome bars ÷ the sum of the bars shown.</li>
+          <li><b>CRM table</b>: ÷ the leads in the table after its filter.</li>
+          <li><b>KPI sparklines</b>: see §3.</li>
+        </ul>
+      </div>
+    </details>
+  
+    <!-- ============================== 3 ============================== -->
+    <details id="howto-kpis">
+      <summary>3 · KPI tiles</summary>
+      <div class="body">
+        <p>Tiles appear in this order. The second row starts at <b>Bot qualified</b>. Each tile shows a big number, a sub-line with its percentage and base, and a sparkline (see the last row). Unless stated otherwise, a lead counts when its lead date is in the range, and its activity counts up to the latest refresh.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>Total leads</td>
+              <td>Unique MasterClass leads (one per email, newest registration) whose lead date is in the range.</td>
+              <td>The number of view rows with a lead date in the range (<code>build_data.py</code> → <code>add()</code> adds 1 per row). No %. The sub-line runs from the first lead day in the range to the <b>latest lead day in the build</b>, even when a custom To is earlier. Sparkline: raw daily lead count.</td>
+              <td><code>lead_email</code>, <code>lead_date</code>. View <code>lead_base</code> over <code>ik-marketing-data.India_Leads.L10X_india_leads</code>.</td></tr>
+            <tr><td>Attempted</td>
+              <td>Leads the qualification bot dialled at least once after this registration. Failed calls count.</td>
+              <td>Σ <code>bot_attempted</code>, which is 1 when the lead has at least one <code>bot_calling_all</code> row. Sub-line "x% of leads". Identities: Attempted = Connected + Failed / Never connected, and Total leads − Attempted = the <code>'Not Attempted'</code> bucket.</td>
+              <td><code>bot_attempted</code> (<code>CASE WHEN bot_summary.contact_id IS NOT NULL</code>). Source: <code>ik-marketing-data.Sales_Dashboard.ai_agent_calling</code>.</td></tr>
+            <tr><td>Connected</td>
+              <td>Leads who picked up at least one real (non-failed) bot call.</td>
+              <td>Σ <code>bot_connected</code>, which is 1 when <code>real_answered_calls = COUNTIF(is_failed_call = 0 AND webinar_call_status = 'answered')</code> &gt; 0. Sub-line "x% of leads". Connected = the <code>'Connected 0 Answers'</code> + <code>'Connected With Answers'</code> buckets.</td>
+              <td><code>bot_connected</code>, <code>total_connected_calls</code> (<code>ai_agent_calling</code>).</td></tr>
+            <tr><td>Connected · 0 answer</td>
+              <td>Connected leads who answered none of the bot's qualification questions.</td>
+              <td>Σ <code>flag_connected_0_ans</code>, i.e. <code>bot_bucket = 'Connected 0 Answers'</code>. That bucket needs at least one answered non-failed call AND <code>COALESCE(MAX(questions_answered over non-failed calls),0) = 0</code>, where <code>questions_answered = COALESCE(total_number_of_questions_answered,0)</code>. A call with no outcome row counts as 0. Sub-line "x% of connected" (÷ Connected).</td>
+              <td><code>flag_connected_0_ans</code>, <code>bot_bucket</code>, <code>best_questions_answered</code> (<code>ai_agent_calling</code> + <code>india_qualification_voice_bot_calling_outcome</code>).</td></tr>
+            <tr><td>Connected · ≥1 answer</td>
+              <td>Connected leads who answered at least one question. This is the base of the Bot qualified and Bot disqualified percentages.</td>
+              <td>Connected − Connected · 0 answer, computed in the browser. It equals the <code>'Connected With Answers'</code> bucket (MAX questions answered on non-failed calls &gt; 0). Sub-line "x% of connected". Its sparkline plots <code>flag_ans_1</code> (leads whose best answer count is exactly 1), not this tile, and is flat at zero (known issue, §10).</td>
+              <td><code>bot_connected</code>, <code>flag_connected_0_ans</code>; sparkline: <code>flag_ans_1</code>.</td></tr>
+            <tr><td>Failed / Never connected</td>
+              <td>Attempted leads the bot never got through to.</td>
+              <td>Leads with <code>bot_bucket IN ('Failed Calls Only','Never Connected')</code>.<br>• <code>'Failed Calls Only'</code>: every call was a failed call, i.e. <code>COUNTIF(is_failed_call = 0) = 0</code>.<br>• <code>'Never Connected'</code>: at least one non-failed call, but none <code>'answered'</code>.<br>Sub-line "x% of leads · failed + never connected".</td>
+              <td><code>bot_bucket</code> (<code>ai_agent_calling</code>).</td></tr>
+            <tr><td>Bot qualified</td>
+              <td>Leads the bot marked as qualified on at least one call.</td>
+              <td>Σ <code>bot_qualified</code> = <code>MAX</code> over all the lead's bot calls of <code>LOWER(phase2_outcome) LIKE '%bot qualified%' OR phase2_outcome = 'PA_Call_Booked'</code>. It is an "ever" flag: a later disqualifying call does not undo it. Sub-line "x% of connected · ≥1 answer". The numerator is not restricted to that base, because every call counts, answered or not.</td>
+              <td><code>bot_qualified</code> (from <code>phase2_outcome</code>, <code>india_qualification_voice_bot_calling_outcome</code>).</td></tr>
+            <tr><td>Bot disqualified</td>
+              <td>Leads with a recorded bot disqualification reason on their peak call.</td>
+              <td>Count where <code>disqualification_reason_peak</code> is not NULL, <code>''</code> or <code>'None'</code> (<code>build_data.py</code> → <code>is_dq()</code>). Sub-line "x% of connected · ≥1 answer · with a disqualification reason". The reason comes from the peak call (§1), so for a lead qualified on any call, the reason read is the one stored on its qualified call. The code does not make "qualified" and "disqualified" mutually exclusive. As with Bot qualified, the numerator is not restricted to the base (a lead with a reason but no answered call still counts), so the Bot qualified and Bot disqualified percentages can add up to more than 100%.</td>
+              <td><code>disqualification_reason_peak</code> (<code>india_qualification_voice_bot_calling_outcome.disqualification_reason</code>).</td></tr>
+            <tr><td>VC booked</td>
+              <td>Bot-qualified leads whose best bot outcome is a booked video consultation (VC), in the standard or an alternative slot.</td>
+              <td>Leads in the range whose <code>phase2_outcome_peak</code> is <code>'Bot Qualified – VC scheduled'</code> or <code>'Bot Qualified – VC alt scheduled'</code> (en dash), counted by lead date. <b>Not event-gated.</b> Sub-line "x% of qualified · VC scheduled + alt scheduled" (÷ Bot qualified). Because the most recent bot-qualified outcome is the peak, a lead that booked and later got another "Bot Qualified – …" outcome (e.g. "Lead denied slot") is not counted. Sparkline: raw daily "VC scheduled" count only; alt slots are left out.</td>
+              <td><code>phase2_outcome_peak</code> (daily <code>vcS</code> + <code>vcA</code>).</td></tr>
+            <tr><td>VC Done (Bot Leads)</td>
+              <td>Of the VC-booked leads, those whose HubSpot status had <b>moved on</b> after the booking by the range end, to anything other than VC scheduled, VC alt scheduled or a New status. Not-interested statuses count too. It shows that the lead progressed past the booking; it is not proof that the VC call took place.</td>
+              <td>Owner decision of 2026-10-30, implemented in <code>build_data.py</code> → <code>main()</code>.<br>1. Take every VC-booked lead (same basis as VC booked) and read its Contacts history, with <code>row_added_at</code> (UTC) + 5:30 = IST.<br>2. <b>Anchor</b> = the first row with <code>lead_status</code> exactly <code>'VC scheduled'</code> or <code>'VC alt scheduled'</code> whose IST date is on or after the lead date. If there is none, the anchor is 00:00 on the lead date.<br>3. <b>Done</b> = the first row strictly after the anchor whose trimmed status is non-empty, is not <code>'VC scheduled'</code> / <code>'VC alt scheduled'</code>, and does not start with <code>'New'</code> (case-sensitive).<br>4. The lead counts when that row's IST date ≤ range end (<code>leadGate()</code>).<br>Sub-line "x% of VC booked · status moved past VC scheduled / New". The four lines below always show and add up to the tile.</td>
+              <td><code>phase2_outcome_peak</code>, <code>lead_email</code>, <code>lead_date</code>. Contacts <code>contact_id</code>, <code>row_added_at</code>, <code>lead_status</code>, joined <code>LOWER(contact_id) = LOWER(lead_email)</code>. Lead columns <code>vcbPeak</code>, <code>vcdDay</code>, <code>vcdGrp</code>. Source: <code>ik-marketing-data.Sales_Dashboard.contacts</code>.</td></tr>
+            <tr><td>↳ RTE + FU + Enrolled</td>
+              <td>VC Done leads whose <b>first</b> status after the booking was ready-to-enrol, follow-up or enrolled.</td>
+              <td>The first moved-on status, trimmed, is exactly one of <code>'Interested-Ready to enroll'</code>, <code>'Interested - Follow-up'</code>, <code>'Interested-Follow-up'</code>, <code>'Follow Up'</code>, <code>'Enrolled'</code>, <code>'Interested-Enroll Later'</code>. Same gate as the tile.</td>
+              <td><code>build_data.py</code> → <code>vcd_group()</code>; label list <code>meta.vcdg</code>.</td></tr>
+            <tr><td>↳ DCD + PSA Qualified</td>
+              <td>VC Done leads whose first status after the booking was discovery-call-done, PSA-qualified, or VC done.</td>
+              <td>The first moved-on status is exactly one of <code>'Discovery call done'</code>, <code>'Discovery_Call_Done'</code>, <code>'PSA Qualified'</code>, <code>'Cold PSA Qualified'</code>, <code>'VC done'</code>. A real "VC done" status is counted here.</td>
+              <td><code>vcd_group()</code>.</td></tr>
+            <tr><td>↳ Unsuitable + Junk</td>
+              <td>VC Done leads whose first status after the booking marked them unsuitable, junk or inactive.</td>
+              <td>The first moved-on status is exactly one of <code>'Not interested-Unsuitable profile'</code>, <code>'Junk'</code>, <code>'Old Inactive (DO NOT USE)'</code>.</td>
+              <td><code>vcd_group()</code>.</td></tr>
+            <tr><td>↳ Rest NI</td>
+              <td>VC Done leads that first moved to any other status, mostly the other Not-interested reasons.</td>
+              <td>Catch-all for any first moved-on status not listed above, so any new HubSpot status lands here automatically.</td>
+              <td><code>vcd_group()</code>.</td></tr>
+            <tr><td>VC attempted, not done yet</td>
+              <td>VC-booked leads that had not moved on by the range end <b>and</b> whose HubSpot status on that day was a New status. Typically the slot came and went without the call happening, and the lead fell back to New.</td>
+              <td>Owner decision of 2026-11-02. A lead counts when it is VC booked, is <b>not</b> VC Done by the range end, and the status in force <b>on</b> the range end is New*.<br>The status in force comes from a per-lead timeline built in <code>build_data.py</code> → <code>main()</code>:<br>• It starts at the VC anchor's IST date with "VC scheduled".<br>• It then takes every non-empty Contacts status after the anchor and before the moved-on row.<br>• The last status of each IST day wins, and consecutive repeats collapse.<br>• Codes: 0 = <code>'VC scheduled'</code> / <code>'VC alt scheduled'</code>, otherwise the New bucket below.<br><code>leadGate()</code> reads the last timeline entry dated ≤ range end. When HubSpot never showed a VC status there is no starting "VC scheduled" entry: the timeline holds only the New statuses logged from 00:00 on the lead date, so the lead counts as attempted from its first New row (even one logged before the bot's booking) and as still VC scheduled before that. Sub-line "x% of VC booked · status back to New on the range end".</td>
+              <td>As VC Done, plus the lead column <code>vcTl</code> and the label list <code>meta.vcn</code> (<code>VCN_STATUSES</code>, <code>vcn_code()</code>). Source: <code>ik-marketing-data.Sales_Dashboard.contacts</code>.</td></tr>
+            <tr><td>↳ New-Call me later / New-Non contact / New / New-New / New-Step 2 Funnel Exit / New (other)</td>
+              <td>Which New status the lead was in on the range end. Lines with zero are hidden.</td>
+              <td>Exact trimmed matches for <code>'New-Call me later'</code>, <code>'New-Non contact'</code>, <code>'New'</code>, <code>'New-New'</code> and <code>'New-Step 2 Funnel Exit'</code>. <code>'New (other)'</code> takes any other status starting with <code>'New'</code>.</td>
+              <td><code>vcn_code()</code>; <code>vcnG0</code>–<code>vcnG5</code>.</td></tr>
+            <tr><td>↳ + still VC scheduled / alt on the range end</td>
+              <td>Booked leads that were neither done nor back to New on the range end: the VC is still upcoming, or HubSpot had not caught up.</td>
+              <td>The lead is booked and not done, and its status in force on the range end is <code>'VC scheduled'</code> / <code>'VC alt scheduled'</code>, or it has no timeline entry on or before that day (the VC row had not yet reached HubSpot, or HubSpot never showed a VC status and had logged no New status by then). This line always shows. <b>Identity, for any range: VC booked = VC Done (Bot Leads) + VC attempted, not done yet + still VC scheduled / alt.</b> HubSpot statuses often update days after the VC slot, so for a past month many leads can still show VC scheduled on its last day.</td>
+              <td><code>vcSched</code>.</td></tr>
+            <tr><td>DCD flag</td>
+              <td>Bot-funnel leads that reached Discovery Call Done (DCD) in HubSpot by the range end. "Bot funnel" means the bot qualified them, or disqualified them only for a soft reason.</td>
+              <td>For each lead in the range: <code>dcd_flag = 1</code> AND (<code>dcd_moved_date</code> is empty OR ≤ range end). <code>dcd_moved_date</code> is the UTC date of the contact's <b>latest</b> DCD row in Contacts (any registration cycle), not the first, so a lead whose DCD status was logged again after the range end drops out of that range.<br>• "qualified" bucket: <code>bot_qualified = 1</code>.<br>• Otherwise the "disqualified" bucket, when <code>disqualification_reason_peak</code> is exactly <code>'PSA review needed'</code> or <code>'Vague answers'</code>, or starts with <code>'Reason unclear'</code>.<br>Tile = qualified + disqualified buckets. DCD leads outside the bot funnel are not shown anywhere on the tile. Sub-line "x% of leads · N qualified, N VC booked, N disqualified" (÷ Total leads). Sparkline: raw daily <code>dcd_flag</code> count over all leads, ungated.</td>
+              <td><code>dcd_flag</code> (L10X <code>DCD_Flag</code>), <code>dcd_moved_date</code>, <code>bot_qualified</code>, <code>disqualification_reason_peak</code>. Sources: <code>L10X_india_leads</code>, <code>Sales_Dashboard.contacts</code>.</td></tr>
+            <tr><td>↳ DCD "qualified"</td>
+              <td>Bot-qualified DCD leads, minus the "VC booked" edge case.</td>
+              <td><code>max(0, qualified bucket − DCD "VC booked")</code>.</td>
+              <td>As above.</td></tr>
+            <tr><td>↳ DCD "VC booked"</td>
+              <td>Leads the bot booked a VC for, where the VC was not marked done and the PA moved the lead to DCD on or after the slot date instead. This is <b>not</b> the VC booked tile.</td>
+              <td>All of:<br>• the bot booked a VC on <b>any</b> call (<code>vc_scheduled_flag</code> OR <code>vc_alt_scheduled_flag</code>);<br>• a slot date exists (the earlier of <code>vc_scheduled_date</code> / <code>vc_alt_scheduled_date</code>);<br>• NOT (<code>vc_done_date</code> between the slot date and the range end);<br>• <code>dcd_moved_date</code> between the slot date and the range end.<br>It does not check <code>dcd_flag</code>, so a lead counted here is not guaranteed to be in the tile (for example when its DCD date comes only from a <code>'Discovery_Call_Done'</code> row, which <code>dcd_flag</code> ignores); the three sub-line numbers add up to the tile only when it is. It uses the view's older date-wise "vc done" status, so a lead can sit both here and in VC Done (Bot Leads).</td>
+              <td><code>vc_scheduled_flag</code>, <code>vc_alt_scheduled_flag</code>, <code>vc_scheduled_date</code>, <code>vc_alt_scheduled_date</code> (= <code>MAX(DATE(SAFE_CAST(verified_slot AS TIMESTAMP)))</code> on calls with that outcome), <code>vc_done_date</code>, <code>dcd_moved_date</code>.</td></tr>
+            <tr><td>↳ DCD "disqualified"</td>
+              <td>DCD leads the bot disqualified for a soft reason.</td>
+              <td>The disqualified bucket above (<code>dcd_flag</code>, date gate, not qualified, soft reason).</td>
+              <td>As above.</td></tr>
+            <tr><td>RTE flag</td>
+              <td>Bot-funnel leads that reached a ready-to-enrol <b>or "Interested - Follow-up"</b> HubSpot status by the range end.</td>
+              <td>Same rules as DCD flag, with <code>rte_flag = 1</code> and the RTE date = <code>rte_moved_date_fixed</code> (falls back to the view's <code>rte_moved_date</code>) empty or ≤ range end. Both are the UTC date of the contact's <b>latest</b> matching Contacts row, as for DCD. Sub-line "x% of leads · N qualified, N VC booked, N disqualified". Sparkline: raw daily <code>rte_flag</code> count over all leads, ungated.</td>
+              <td><code>rte_flag</code> (L10X <code>RTE_Flag</code>: <code>'%ready to enroll%'</code> or <code>'%interested - follow-up%'</code>), <code>rte_moved_date</code>; <code>rte_moved_date_fixed</code> from <code>build_data.py</code>'s Contacts join.</td></tr>
+            <tr><td>↳ RTE "qualified" / "VC booked" / "disqualified"</td>
+              <td>As for DCD.</td>
+              <td>"VC booked" is the same edge rule using the RTE date. It counts only when the DCD edge did not already count the lead. "qualified" = <code>max(0, qualified bucket − RTE "VC booked")</code>.</td>
+              <td>As above.</td></tr>
+            <tr><td>Sale</td>
+              <td>Bot-qualified leads in the range that have a sale recorded.</td>
+              <td>Count of <code>bot_qualified = 1</code> AND <code>sale_flag = 1</code>. Not gated, and <code>sale_date</code> is not used: a sale made any time up to the refresh counts. Sub-line "x% of leads (bot funnel)" (÷ Total leads). Sparkline: raw daily count of <b>all</b> sales, not only bot-funnel sales.</td>
+              <td><code>sale_flag</code> (L10X <code>sale_email_1</code>), <code>bot_qualified</code>.</td></tr>
+            <tr><td>↳ "N other (non-bot)"</td>
+              <td>Sales among leads in the range that the bot did not qualify: not called, not reached, disqualified, or connected without a verdict.</td>
+              <td>All sales − bot-funnel sales (<code>sale_flag = 1</code> AND <code>bot_qualified ≠ 1</code>).</td>
+              <td><code>sale_flag</code>, <code>bot_qualified</code>.</td></tr>
+            <tr><td>Sparklines (all tiles)</td>
+              <td>A small trend under each tile: one point per active lead day in the range, with a dot on the latest day. No axis.</td>
+              <td><b>Rate</b> sparklines plot that day's count ÷ that day's leads, whatever the tile's own base: Attempted, Connected, Connected · 0 answer, Connected · ≥1 answer (plots <code>flag_ans_1</code>, so it is flat at zero, §10), Failed / Never connected, Bot qualified, Bot disqualified. The other tiles plot <b>raw daily counts</b> from the ungated build values, by lead date and as of the latest refresh:<br>• Total leads;<br>• VC booked (standard slot only);<br>• VC Done;<br>• VC attempted (each lead's latest status);<br>• DCD / RTE (raw flags);<br>• Sale (all sales).<br>A sparkline needs at least 2 active days.</td>
+              <td><code>sparkline()</code> over <code>data.json</code> → <code>daily</code>.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+  
+    <!-- ============================== 4 ============================== -->
+    <details id="howto-funnel">
+      <summary>4 · Funnel stages by segment</summary>
+      <div class="body">
+        <p>Under <b>Funnel by Pod &amp; PA</b>. One row per Pod (default) or PA, with every funnel stage as a column. It is sorted by Leads (high to low) by default; click a header to sort, and click again to reverse. Only the <b>first 20 rows</b> are shown, and there is no totals row, so column sums need not match the KPI tiles.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>Pod / PA toggle · Segment</td>
+              <td>The current owner team (Pod) or owner (PA) of each lead.</td>
+              <td>The segment value is <code>pod</code> or <code>pa_name</code>; empty → "(blank)". Pod reads <code>'Unassigned'</code> when the contact has no owner, and "(blank)" when the owner is missing from the PA → Pod mapping (§1). Segments with no leads in the range are dropped. Both come from the contact's <b>latest</b> HubSpot owner at refresh time, not the owner when the lead arrived.</td>
+              <td><code>pod</code>, <code>pa_name</code> (L10X <code>POD</code> / <code>PA_name</code>; <code>ik-marketing-data.India_Leads.PA_POD_Mapping_India</code>).</td></tr>
+            <tr><td>Leads</td>
+              <td>Leads in the segment whose lead date is in the range.</td>
+              <td>Count of view rows. The mini bar is relative to the largest segment.</td>
+              <td><code>lead_date</code>.</td></tr>
+            <tr><td>Leads attempted · avg</td>
+              <td>Leads the bot called at least once. The grey number is the average number of <b>bot</b> calls per attempted lead.</td>
+              <td>Count = Σ <code>bot_attempted</code>. Grey = Σ <code>total_call_attempts</code> ÷ attempted leads, 1 decimal place, and it includes failed calls. These are bot calls, not PA dials, although the hint says "dials".</td>
+              <td><code>bot_attempted</code>, <code>total_call_attempts</code> (<code>COUNT(vapi_call_id)</code>).</td></tr>
+            <tr><td>Leads connected · avg</td>
+              <td>Leads with at least one answered bot call. The grey number is the average number of answered bot calls per connected lead.</td>
+              <td>Count = Σ <code>bot_connected</code>. Grey = Σ <code>total_connected_calls</code> ÷ connected leads.</td>
+              <td><code>bot_connected</code>, <code>total_connected_calls</code> (= <code>real_answered_calls</code>).</td></tr>
+            <tr><td>Ans ≥1</td>
+              <td>Connected leads who answered at least one question.</td>
+              <td><code>max(0, connected − flag_connected_0_ans)</code>.</td>
+              <td><code>bot_connected</code>, <code>flag_connected_0_ans</code>.</td></tr>
+            <tr><td>Bot Q</td>
+              <td>Bot-qualified leads.</td>
+              <td>Σ <code>bot_qualified</code>, the same rule as the KPI tile.</td>
+              <td><code>bot_qualified</code>.</td></tr>
+            <tr><td>Bot DQ</td>
+              <td>Leads with a bot disqualification reason.</td>
+              <td><code>disqualification_reason_peak</code> not NULL / <code>''</code> / <code>'None'</code>.</td>
+              <td><code>disqualification_reason_peak</code>.</td></tr>
+            <tr><td>VC booked</td>
+              <td>The same basis as the VC booked tile.</td>
+              <td><code>phase2_outcome_peak IN ('Bot Qualified – VC scheduled','Bot Qualified – VC alt scheduled')</code>. Not gated.</td>
+              <td><code>phase2_outcome_peak</code>.</td></tr>
+            <tr><td>VC done (bot)</td>
+              <td>The per-segment VC Done (Bot Leads).</td>
+              <td>The same rule and gate as the tile (status moved on by the range end).</td>
+              <td>Contacts history (§3).</td></tr>
+            <tr><td>DCD flag</td>
+              <td>The per-segment DCD flag tile: bot-funnel DCD by the range end.</td>
+              <td>The tile's qualified + disqualified buckets, gated. This is not the raw <code>dcd_flag</code>.</td>
+              <td><code>dcd_flag</code>, <code>dcd_moved_date</code>, <code>bot_qualified</code>, <code>disqualification_reason_peak</code>.</td></tr>
+            <tr><td>Bot DCD</td>
+              <td>The DCD tile's "VC booked" edge case: the bot booked a VC on any call, HubSpot shows no "VC done" status dated between the slot date and the range end, and the PA moved the lead to DCD in that window instead. It uses the any-call booking flag, not this table's VC booked basis, so it can include leads the VC booked column leaves out, and a lead can count both here and in VC done (bot) (§10).</td>
+              <td>The same rule as DCD "VC booked" (§3), gated.</td>
+              <td><code>vc_scheduled_flag</code>, <code>vc_alt_scheduled_flag</code>, slot dates, <code>vc_done_date</code>, <code>dcd_moved_date</code>.</td></tr>
+            <tr><td>Cur DCD</td>
+              <td>Leads whose <b>current</b> HubSpot status is Discovery call done.</td>
+              <td>The trimmed <code>lead_status</code> is <code>'Discovery call done'</code> or <code>'Discovery_Call_Done'</code>. This is a snapshot at refresh with no gate and no bot-funnel restriction. Leads that passed DCD and moved on are not counted.</td>
+              <td><code>lead_status</code> (latest Contacts row).</td></tr>
+            <tr><td>RTE flag</td>
+              <td>The per-segment RTE flag tile.</td>
+              <td>The tile's qualified + disqualified buckets, gated. It includes "Interested - Follow-up".</td>
+              <td><code>rte_flag</code>, RTE date (<code>rte_moved_date_fixed</code>, else <code>rte_moved_date</code>; §3), <code>bot_qualified</code>, <code>disqualification_reason_peak</code>.</td></tr>
+            <tr><td>Bot RTE</td>
+              <td>The RTE tile's "VC booked" edge case.</td>
+              <td>The same rule as RTE "VC booked" (§3), gated; it counts only when the DCD edge did not.</td>
+              <td>As Bot DCD, plus the RTE date.</td></tr>
+            <tr><td>Cur RTE</td>
+              <td>Leads whose current HubSpot status is exactly ready-to-enrol.</td>
+              <td>The trimmed <code>lead_status</code> is <code>'Interested-Ready to enroll'</code>. This is narrower than RTE flag: no follow-up statuses.</td>
+              <td><code>lead_status</code>.</td></tr>
+            <tr><td>Bot Sale</td>
+              <td>Bot-qualified leads with a sale.</td>
+              <td><code>bot_qualified = 1</code> AND <code>sale_flag = 1</code>. Not gated.</td>
+              <td><code>bot_qualified</code>, <code>sale_flag</code>.</td></tr>
+            <tr><td>Non-bot Sale</td>
+              <td>Sales from leads the bot did not qualify.</td>
+              <td><code>max(0, Σ sale_flag − Bot Sale)</code>.</td>
+              <td><code>sale_flag</code>.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+  
+    <!-- ============================== 5 ============================== -->
+    <details id="howto-qual">
+      <summary>5 · Qualification panels</summary>
+      <div class="body">
+        <p>Under <b>1 · Qualification &amp; disqualification reasoning</b>. None of these panels is event-gated.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>Disqualification reasons: "N leads with a recorded disqualification reason · x% of leads"</td>
+              <td>How many leads in the range have one of the 8 known disqualification reasons on their peak call (§1), and their share of all leads.</td>
+              <td>N = the sum of the reason bars. % = N ÷ Total leads. This N counts only the 8 categories below, so it can be lower than the Bot disqualified tile, which counts any non-empty reason.</td>
+              <td><code>disqualification_reason_peak</code> (<code>india_qualification_voice_bot_calling_outcome</code>).</td></tr>
+            <tr><td>Reason bars: "count (x%)"</td>
+              <td>Which qualification gate fired, for disqualified leads.</td>
+              <td><code>build_data.py</code> → <code>dq_category()</code>:<br>1. Split the reason on <code>' | '</code>, take the first piece and trim it.<br>2. A piece starting with <code>'Reason unclear'</code> becomes <code>'Reason unclear — review transcript'</code>.<br>3. The lead counts only if the result exactly equals one of <code>'Non-tech'</code>, <code>'Vague answers'</code>, <code>'PSA review needed'</code>, <code>'Salary &lt;10L'</code>, <code>'Not looking to switch or upskill'</code>, <code>'Target outside tech/AI'</code>, <code>'&lt;5 YOE'</code>, <code>'Reason unclear — review transcript'</code>.<br>% = count ÷ the sum of the bars shown, 0 decimal places (1 in the tooltip, "% of shown"). Bars are sorted high to low and zero bars are hidden. Colours follow rank, not reason.</td>
+              <td><code>disqualification_reason_peak</code>; <code>build_data.py</code> list <code>DQ</code>.</td></tr>
+            <tr><td>Qualified — what happens next: "N bot qualified · x% of leads"</td>
+              <td>Bot-qualified leads in the range and their share of all leads.</td>
+              <td>N = the Bot qualified tile (<code>bot_qualified</code>); % = ÷ Total leads, unlike the tile's own sub-line (÷ Connected · ≥1 answer). This includes <code>'PA_Call_Booked'</code> leads, which have no bar.</td>
+              <td><code>bot_qualified</code>.</td></tr>
+            <tr><td>Outcome bars: VC scheduled · VC alt scheduled · Lead denied slot · Slot pending · Retrying · Retries over · Qualified (no sub-status yet)</td>
+              <td>The booking outcome of qualified leads: their best (most recent bot-qualified) outcome.</td>
+              <td>Counts of <code>phase2_outcome_peak</code> equal to, respectively, <code>'Bot Qualified – VC scheduled'</code>, <code>'Bot Qualified – VC alt scheduled'</code>, <code>'Bot Qualified – Lead denied slot'</code>, <code>'Bot Qualified – Slot pending'</code>, <code>'Bot Qualified – Retrying'</code>, <code>'Bot Qualified – Retries over'</code> and <code>'Bot Qualified'</code> (shown as "Qualified (no sub-status yet)"). Only outcomes starting with "Bot Qualified" get a bar. The prefix is stripped, zero bars are hidden, and bars are sorted high to low. % = ÷ the sum of the bars shown. VC scheduled + VC alt scheduled = the VC booked tile. Bars = header − leads whose peak outcome is <code>'PA_Call_Booked'</code> − leads whose peak is a "bot qualified" variant not in this list.</td>
+              <td><code>phase2_outcome_peak</code>; <code>build_data.py</code> list <code>OUT</code>.</td></tr>
+            <tr><td>Qualification drivers by segment: Role / Experience / Channel / Pod / Day of week / Webinar / City</td>
+              <td>The qualified and disqualified mix per lead attribute. The default is Role.</td>
+              <td>Segments with <b>≥20 leads</b> in the range, sorted by leads, top 12. Empty values → "(blank)".<br>• <b>Role</b> = <code>role_domain</code> grouped by <code>build_data.py</code> → <code>role_group()</code> into Software Engineer, Data, QA / SDET, DevOps / SRE / Cloud, Product / Program Mgmt, Engineering Management, AI / ML, Security, or Other (anything unlisted, including blank).<br>• <b>Experience</b> = <code>work_ex_category</code>.<br>• <b>Channel</b> = <code>channel</code>.<br>• <b>Pod</b> = <code>pod</code>.<br>• <b>Day of week</b> = the weekday (Mon–Sun) of the bot's first call (<code>bot_first_attempt_date</code>, IST), falling back to the lead date if never called. The date range still filters on lead date.<br>• <b>Webinar</b> = <code>webinar_type</code>.<br>• <b>City</b> = <code>city</code>.</td>
+              <td><code>role_domain</code>, <code>work_ex_category</code>, <code>channel</code>, <code>pod</code>, <code>webinar_type</code>, <code>city</code> (L10X); <code>bot_first_attempt_date</code> (bot calls, <code>ai_agent_calling</code>).</td></tr>
+            <tr><td>Stacked bar (green / red / grey) and the right-hand "leads (x%)"</td>
+              <td>Per segment: the share qualified, disqualified, and neither. The right value is the segment's lead count and its qualified %.</td>
+              <td>• Green = qualified ÷ segment leads (<code>bot_qualified</code>).<br>• Red = disqualified ÷ segment leads (any non-empty <code>disqualification_reason_peak</code>).<br>• Grey "Neither" = <code>max(0, leads − qualified − disqualified)</code> ÷ leads.<br>The tooltip shows all three to 1 decimal place. The base is all segment leads, including leads that were never called.</td>
+              <td><code>bot_qualified</code>, <code>disqualification_reason_peak</code>.</td></tr>
+            <tr><td>Legend "Qualified (n) / Disqualified (n) / Neither (n)" and footnote</td>
+              <td>Totals across the rows <b>shown</b>. The footnote reads: "Neither = the bot reached no verdict — lead was not attempted, never connected, or connected without a qualifying/disqualifying outcome (e.g. Not_Triggered / incomplete)".</td>
+              <td>The sums cover only the displayed rows (≥20 leads, top 12). Neither = leads − qualified − disqualified, not clamped. These are not range-wide totals.</td>
+              <td>—</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+  
+    <!-- ============================== 6 ============================== -->
+    <details id="howto-calls">
+      <summary>6 · Calls &amp; connects</summary>
+      <div class="body">
+        <p>Pod-wise and PA-wise panels sit under <b>3 · PA &amp; Pod-wise attempts and connects</b>, Time to first connect under <b>2 · Time to first connect</b>, and the charts under <b>Trends</b>.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>Pod-wise attempts &amp; connects: rows "Pod · leads" and the "All leads / Bot qualified / Bot disqualified" filter</td>
+              <td>How well PAs (human callers) covered each Pod's leads in the range.</td>
+              <td>Lead rows with a lead date in the range, optionally narrowed to <code>bot_qualified = 1</code> or to "has a DQ reason". Segment = <code>pod</code> or "(blank)". Segments with ≥20 leads, sorted by leads, top 12. When none qualify: "No segments with ≥20 leads for this filter."</td>
+              <td><code>pod</code>, <code>bot_qualified</code>, <code>disqualification_reason_peak</code>.</td></tr>
+            <tr><td>PA-wise attempts &amp; connects: rows "PA · leads", the "All pods" filter and the qualification filter</td>
+              <td>The same view per assigned PA, optionally inside one Pod.</td>
+              <td>Segment = <code>pa_name</code> or "(blank)". The Pod list holds every non-empty pod across the whole build. The other rules are as for the Pod panel. The PA is the assigned owner, not necessarily the person who dialled.</td>
+              <td><code>pa_name</code>, <code>pod</code>.</td></tr>
+            <tr><td>Green: Connected (≥120s)</td>
+              <td>Share of the segment's leads with at least one PA call longer than 2 minutes.</td>
+              <td>Leads with <code>pa_connects_120s &gt; 0</code> ÷ segment leads. The view counts <code>duration &gt; 120</code> (strictly greater). Calls count from lead creation up to the refresh; the date range does not cut them off.</td>
+              <td><code>pa_connects_120s</code> (<code>ik-marketing-data.Marketing_data_new_logic.call_metadata</code>).</td></tr>
+            <tr><td>Amber: Dialed, no connect</td>
+              <td>Share dialled by a PA but never held past 120 seconds.</td>
+              <td><code>max(0, dialled − connected)</code> ÷ leads, where dialled = leads with <code>pa_total_dials &gt; 0</code>.</td>
+              <td><code>pa_total_dials</code>, <code>pa_connects_120s</code>.</td></tr>
+            <tr><td>Grey: Not dialed</td>
+              <td>Share with no PA call logged.</td>
+              <td><code>max(0, leads − dialled)</code> ÷ leads. "No call" includes leads with no <code>call_metadata</code> match.</td>
+              <td><code>pa_total_dials</code>.</td></tr>
+            <tr><td>Right value "dials · conn"</td>
+              <td>Average PA dials, and average PA connects, per <b>dialled</b> lead.</td>
+              <td>Σ <code>pa_total_dials</code> ÷ dialled leads · Σ <code>pa_connects_120s</code> ÷ dialled leads, 1 decimal place.</td>
+              <td><code>pa_total_dials</code>, <code>pa_connects_120s</code>.</td></tr>
+            <tr><td>Row tooltip</td>
+              <td>The detail behind a row.</td>
+              <td>Leads; PA dialled N (%); PA connected N (%); total dials · connects; average dials and connects per dialled lead (2 decimal places); "Avg talk / connect" = Σ <code>pa_connected_talk_mins</code> ÷ Σ <code>pa_connects_120s</code> minutes (1 decimal place).</td>
+              <td><code>pa_connected_talk_mins</code> (rounded to 0.1 min per lead).</td></tr>
+            <tr><td>Time to first connect: bars "label (x%)"</td>
+              <td>Meant to show how soon after the lead was created the bot first got through. <b>Today it shows at most two bars: "a: 0–5 min" and "Not Connected"</b>, and most connected leads are missing (owner-accepted, see §10).</td>
+              <td>The view's bucket is <code>DATETIME_DIFF(bot_first_connect_ist, lead_created_ist, MINUTE)</code>, where <code>bot_first_connect_ist</code> = the first answered, non-failed bot call (IST). It emits 10 buckets plus <code>'Not Connected'</code>: <code>'a: 0–5 min'</code>, <code>'b: 5–10 min'</code>, <code>'c: 10–20 min'</code>, <code>'d: 20–30 min'</code>, <code>'e: 30–60 min'</code>, <code>'f: 1–3 hrs'</code>, <code>'g: 3–6 hrs'</code>, <code>'h: 6–12 hrs'</code>, <code>'i: 12–24 hrs'</code>, <code>'j: &gt; 24 hrs'</code>. The pipeline's <code>TTC</code> list still holds the older 8 labels (<code>'a: 0–5 min'</code>, <code>'b: 5–15 min'</code>, <code>'c: 15–30 min'</code>, <code>'d: 30–60 min'</code>, <code>'e: 1–12 hrs'</code>, <code>'f: 12–24 hrs'</code>, <code>'g: 1–3 days'</code>, <code>'h: &gt; 3 days'</code>) plus <code>'Not Connected'</code>. A lead counts only when its bucket text exactly matches the list, so only <code>'a: 0–5 min'</code> and <code>'Not Connected'</code> are counted. Bars follow list order and zero bars are hidden. The % sits in the label and the right-hand number is the count. % = ÷ the sum of the bars shown, which today is only "a: 0–5 min" + "Not Connected" leads, so the "a" share is not a share of connected leads.</td>
+              <td><code>time_to_connect_bucket</code>; <code>build_data.py</code> list <code>TTC</code>. Sources: <code>ai_agent_calling</code>, L10X <code>Lead_created_time</code>.</td></tr>
+            <tr><td>"Not Connected" bar</td>
+              <td>Leads the bot never reached on an answered, non-failed call, <b>including</b> leads never attempted.</td>
+              <td><code>bot_first_connect_ist IS NULL</code>, which covers the buckets Not Attempted, Failed Calls Only and Never Connected. The hint says "(of connected leads)", but this bar is included and is part of the % base.</td>
+              <td><code>time_to_connect_bucket</code>.</td></tr>
+            <tr><td>Trends: Daily connect rate</td>
+              <td>For each lead day: the share of that day's leads ever connected by the bot. Hint: "Connected as % of leads".</td>
+              <td>One point per active lead day: <code>bot_connected</code> leads ÷ leads that day. Not smoothed. The x-axis is by date with about 5 labels; the y-axis runs from 0 to the highest day. A day's rate keeps rising as later calls connect that cohort.</td>
+              <td><code>bot_connected</code>, <code>lead_date</code>.</td></tr>
+            <tr><td>Trends: Qualification &amp; disqualification rate (Qualified % / Disqualified %)</td>
+              <td>The daily share of leads qualified (green) and disqualified (red), as a 7-day average. Hint: "% of leads, 7-day average".</td>
+              <td>Per lead day: rate = qualified ÷ leads (and DQ-reason leads ÷ leads). The plotted point is the plain mean of the last up-to-7 daily rates <b>inside the selected range</b>. It is unweighted (a small day weighs as much as a big one) and counts active lead days, not calendar days. The base is Total leads, unlike the tiles, which use Connected · ≥1 answer.</td>
+              <td><code>bot_qualified</code>, <code>disqualification_reason_peak</code>, <code>lead_date</code>.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+  
+    <!-- ============================== 7 ============================== -->
+    <details id="howto-crm">
+      <summary>7 · CRM pipeline stage</summary>
+      <div class="body">
+        <p>The <b>Lead status distribution</b> table: one row per current HubSpot lead status for the leads in the range. All statuses are listed. The default sort is Leads (high to low); click a header to sort, and "% of leads" sorts by Leads.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>Filter: All leads / Bot qualified / Bot disqualified</td>
+              <td>Restricts the table to all leads, bot-qualified leads, or leads with a bot DQ reason.</td>
+              <td><code>bot_qualified = 1</code>, or <code>disqualification_reason_peak</code> not NULL / <code>''</code> / <code>'None'</code>.</td>
+              <td><code>bot_qualified</code>, <code>disqualification_reason_peak</code>.</td></tr>
+            <tr><td>Lead status</td>
+              <td>The lead's <b>current</b> CRM status, as of the latest refresh, not as of the range end.</td>
+              <td>The status on the latest Contacts row for the contact, trimmed. Empty → "(blank)". <code>'Discovery_Call_Done'</code> is merged into <code>'Discovery call done'</code>; other near-duplicates (e.g. <code>'Interested - Follow-up'</code> vs <code>'Interested-Follow-up'</code>) stay separate. Contacts spans every registration cycle, so the status may come from another cycle than this lead date.</td>
+              <td><code>lead_status</code> (view CTE <code>latest_lead_status</code>, <code>ik-marketing-data.Sales_Dashboard.contacts</code>).</td></tr>
+            <tr><td>Leads</td>
+              <td>Leads in the range (after the filter) currently in that status.</td>
+              <td>Count of lead rows; the mini bar is relative to the largest row.</td>
+              <td><code>lead_status</code>, <code>lead_date</code>.</td></tr>
+            <tr><td>% of leads</td>
+              <td>The status's share of the leads in this table.</td>
+              <td>Leads ÷ the table total, 1 decimal place. With a filter on, the base is qualified (or disqualified) leads only.</td>
+              <td>—</td></tr>
+            <tr><td>Bot Q</td>
+              <td>How many leads in that status the bot qualified.</td>
+              <td>Count with <code>bot_qualified = 1</code>.</td>
+              <td><code>bot_qualified</code>.</td></tr>
+            <tr><td>Bot DQ</td>
+              <td>How many leads in that status have a bot DQ reason.</td>
+              <td>Count with a non-empty <code>disqualification_reason_peak</code>, including reasons outside the 8 categories.</td>
+              <td><code>disqualification_reason_peak</code>.</td></tr>
+            <tr><td>Total (footer)</td>
+              <td>Column totals.</td>
+              <td>Leads = the table total, % = "100%" (fixed text), Bot Q and Bot DQ = column sums.</td>
+              <td>—</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+  
+    <!-- ============================== 8 ============================== -->
+    <details id="howto-evals">
+      <summary>8 · Bot Evals</summary>
+      <div class="body">
+        <p>Under <b>Bot Evals — outcomes &amp; accuracy</b>: what the bot decided and, where an LLM "judge" reviewed the call, whether that decision was right. The labels say "calls", but the unit is the <b>lead</b>. Each lead contributes only the verdict, tags and outcome of its <b>peak call</b> (§1). If the peak call was not judged, the lead is not counted, even when another of its calls was. Follows the date range by lead date; not event-gated.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>Calls judged</td>
+              <td>Leads in the range whose peak call has a judge verdict.</td>
+              <td>Count of leads whose <code>classification_correctness_peak</code> is exactly one of <code>'agree'</code>, <code>'na'</code>, <code>'disagree_wrongly_qualified'</code>, <code>'needs_review'</code>, <code>'disagree_wrongly_disqualified'</code>. NULL and other values are ignored.</td>
+              <td><code>classification_correctness_peak</code> (<code>india_qualification_voice_bot_calling_outcome.classification_correctness</code>).</td></tr>
+            <tr><td>"of N phase-2 calls in range"</td>
+              <td>Context for the judged count: leads whose peak call has one of the listed phase-2 outcomes, other than Not_Triggered. Leads whose peak outcome is a disqualification are not in it.</td>
+              <td>N = leads whose <code>phase2_outcome_peak</code> is in the pipeline's <code>OUT</code> list (the 7 "Bot Qualified…" values, <code>'PA_Call_Booked'</code>, <code>'Cold_MC_Directed'</code>, <code>'Fallback_Phase1'</code>, <code>'Not_Triggered'</code>), minus <code>'Not_Triggered'</code>. "Calls judged" has no such restriction. <code>'DISQUALIFIED'</code> is not in <code>OUT</code>, so judged leads whose peak outcome is <code>'DISQUALIFIED'</code>, <code>'Not_Triggered'</code> or any other value outside the list are in "Calls judged" but not in N. The judged count can therefore be larger than N.</td>
+              <td><code>phase2_outcome_peak</code>; <code>build_data.py</code> list <code>OUT</code>.</td></tr>
+            <tr><td>Correct classification</td>
+              <td>Of the verdicts where the judge took a clear position, the share where it agreed with the bot.</td>
+              <td><code>agree ÷ (agree + disagree_wrongly_qualified + disagree_wrongly_disqualified)</code> × 100, 1 decimal place. Sub-line "N of M assessed (excl. not-assessable &amp; needs-review)". Shows "–" when M = 0.</td>
+              <td><code>classification_correctness_peak</code>.</td></tr>
+            <tr><td>Judge verdicts: "N calls judged · share of judged"</td>
+              <td>The breakdown of verdicts.</td>
+              <td>One bar per verdict, "count (x%)" with % = ÷ Calls judged (0 decimal places; 1 in the tooltip). Zero bars are hidden, and bars are sorted high to low.</td>
+              <td><code>classification_correctness_peak</code>.</td></tr>
+            <tr><td>↳ Judge agreed with the bot</td><td>The judge agreed with the bot's qualify / disqualify call.</td><td><code>'agree'</code>; part of the Correct classification base.</td><td>—</td></tr>
+            <tr><td>↳ Not assessable</td><td>The judge could not form a view. A note under the panel repeats the count and says this is not the same as the bot being wrong.</td><td><code>'na'</code>; excluded from Correct classification.</td><td>—</td></tr>
+            <tr><td>↳ Wrongly qualified</td><td>The judge thinks the bot qualified a lead it should have disqualified.</td><td><code>'disagree_wrongly_qualified'</code>; in the base.</td><td>—</td></tr>
+            <tr><td>↳ Needs human review</td><td>The judge flagged the call for a person to check instead of giving a verdict.</td><td><code>'needs_review'</code>; excluded from Correct classification.</td><td>—</td></tr>
+            <tr><td>↳ Wrongly disqualified</td><td>The judge thinks the bot disqualified a lead it should have qualified.</td><td><code>'disagree_wrongly_disqualified'</code>; in the base.</td><td>—</td></tr>
+            <tr><td>Why the judge disagreed: "N calls the judge flagged · share of flagged"</td>
+              <td>How many leads in the range carry at least one recognised judge issue tag, and which tags they carry.</td>
+              <td>N = leads whose <code>classification_issue_tags_peak</code>, split on <code>','</code> and trimmed, holds at least one known tag. This does not depend on the verdict value. Each bar = leads carrying that tag, and % = ÷ N, so shares can add up to more than 100%. Unknown tags are dropped. A tag repeated within one lead counts twice. With no tags in range the panel shows "No disagreement tags in range."</td>
+              <td><code>classification_issue_tags_peak</code> (<code>…_calling_outcome.classification_correctness_issue_tags</code>).</td></tr>
+            <tr><td>↳ Tag labels</td>
+              <td>The plain name of each tag.</td>
+              <td><code>role_rule</code> → Role rule · <code>ctc_rule</code> → CTC rule · <code>unanswered_gate_fact</code> → Gate fact left unanswered · <code>reask_threshold</code> → Re-ask threshold · <code>experience_rule</code> → Experience rule · <code>intent_rule</code> → Intent rule · <code>target_role_rule</code> → Target-role rule · <code>transcript_ambiguity</code> → Transcript ambiguity · <code>other</code> → Other.</td>
+              <td><code>build_data.py</code> list <code>EVTAG</code>.</td></tr>
+            <tr><td>Recorded phase-2 outcomes of judged calls</td>
+              <td>For judged leads, the outcome the bot itself recorded on the peak call. Hint: "excludes calls where phase 2 never triggered".</td>
+              <td>Judged leads whose <code>phase2_outcome_peak</code> is in <code>OUT</code> and is not <code>'Not_Triggered'</code>. The prefix "Bot Qualified – " is shown as "BQ – ". The header reads "N judged calls across k recorded phase-2 outcomes"; % = ÷ N. Because <code>'DISQUALIFIED'</code> is not in <code>OUT</code>, judged disqualified leads (including every "Wrongly disqualified" one with that peak outcome) do not appear here. With nothing to show: "No judged calls in range."</td>
+              <td><code>classification_correctness_peak</code>, <code>phase2_outcome_peak</code>.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+  
+    <!-- ============================== 9 ============================== -->
+    <details id="howto-explorer">
+      <summary>9 · Lead explorer</summary>
+      <div class="body">
+        <p>One row per lead, newest lead date first, 25 per page (‹ Prev / Page X of Y / Next ›). Every filter combines with AND, and with the date range at the top of the page (by lead date). The explorer's flags are <b>raw lead-level flags</b>, with no event gate and no bot-funnel restriction, so their counts need not match the VC booked, DCD, RTE or Sale tiles. Changing any filter or the date range returns to page 1.</p>
+        <h4>Filters</h4>
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>Lead ID / email…</td><td>Search by email.</td><td>Case-insensitive substring match of the trimmed text against <code>lead_email</code>.</td><td><code>lead_email</code>.</td></tr>
+            <tr><td>Pod: any</td><td>One Pod.</td><td>Exact match. The options are every non-empty pod across the whole build, A–Z.</td><td><code>pod</code>.</td></tr>
+            <tr><td>PA: any</td><td>One assigned PA.</td><td>Exact match. The options are every non-empty PA across the build.</td><td><code>pa_name</code>.</td></tr>
+            <tr><td>Lead status: any</td><td>One current HubSpot status.</td><td>Exact match on the raw status. <code>'Discovery_Call_Done'</code> is not merged here, unlike the CRM table.</td><td><code>lead_status</code>.</td></tr>
+            <tr><td>Connection bucket: any</td><td>How far the bot got.</td><td>Exact match on <code>'Not Attempted'</code>, <code>'Failed Calls Only'</code>, <code>'Never Connected'</code>, <code>'Connected 0 Answers'</code> or <code>'Connected With Answers'</code> (only buckets present are offered).</td><td><code>bot_bucket</code>.</td></tr>
+            <tr><td>Qualification: any / Bot qualified / Bot disqualified / Neither (no verdict)</td><td>The bot's verdict.</td><td>Qualified = <code>bot_qualified = 1</code>. Disqualified = <code>disqualification_reason_peak</code> not NULL / <code>''</code> / <code>'None'</code>. Neither = neither of the two. A lead that is both qualified and disqualified matches both of those options.</td><td><code>bot_qualified</code>, <code>disqualification_reason_peak</code>.</td></tr>
+            <tr><td>Max-ans TAT: any</td><td>Despite the name, the <b>time from lead creation to the bot's first connect</b> bucket.</td><td>Exact match. The options are the pipeline <code>TTC</code> labels that appear on some lead, which in practice means only <code>'a: 0–5 min'</code> and <code>'Not Connected'</code> (see §6).</td><td><code>time_to_connect_bucket</code>.</td></tr>
+            <tr><td>VC booked: any / Yes / No</td><td>Whether the bot booked a VC on <b>any</b> call.</td><td><code>vc_scheduled_flag = 1</code> OR <code>vc_alt_scheduled_flag = 1</code>. This is not the tile's peak basis: a lead that booked and later got another outcome is "Yes" here.</td><td><code>vc_scheduled_flag</code>, <code>vc_alt_scheduled_flag</code>.</td></tr>
+            <tr><td>Sale: any / Yes / No</td><td>Any recorded sale, bot or not.</td><td><code>sale_flag</code>.</td><td><code>sale_flag</code> (L10X).</td></tr>
+            <tr><td>DCD: any / Yes / No</td><td>The raw L10X DCD flag.</td><td><code>dcd_flag</code>; no date gate, no bot-funnel restriction.</td><td><code>dcd_flag</code>.</td></tr>
+            <tr><td>RTE: any / Yes / No</td><td>The raw L10X RTE flag (includes "Interested - Follow-up").</td><td><code>rte_flag</code>.</td><td><code>rte_flag</code>.</td></tr>
+            <tr><td>Judge verdict: any / Judge agreed / Wrongly qualified / Wrongly disqualified / Needs human review / Not assessable</td><td>The peak call's judge verdict.</td><td>Exact match on <code>'agree'</code>, <code>'disagree_wrongly_qualified'</code>, <code>'disagree_wrongly_disqualified'</code>, <code>'needs_review'</code> or <code>'na'</code>. There is no "not judged" option.</td><td><code>classification_correctness_peak</code>.</td></tr>
+            <tr><td>✕ (clear filters) · "N leads (filtered)"</td><td>Clears the 12 explorer filters and shows the match count.</td><td>✕ does <b>not</b> reset the top date range. The count shows "(filtered)" when any explorer filter is set or the range is not All.</td><td>—</td></tr>
+          </tbody>
+        </table></div>
+        <h4>Columns</h4>
+        <div class="scroll"><table>
+          <thead><tr><th>Metric / element (as shown)</th><th>What it shows</th><th>Exact logic</th><th>Columns &amp; source</th></tr></thead>
+          <tbody>
+            <tr><td>Lead ID</td><td>The lead's email (HubSpot contact id).</td><td>Shown as-is.</td><td><code>lead_email</code>.</td></tr>
+            <tr><td>Date</td><td>The lead date: the date that places the lead in the range.</td><td>"DD Mon", with no year.</td><td><code>lead_date</code>.</td></tr>
+            <tr><td>1st attempt / Last attempt</td><td>First and latest bot call, failed calls included.</td><td><code>DATE(MIN(call_ist))</code> / <code>DATE(MAX(call_ist))</code>, IST, calls since this registration; "–" if none.</td><td><code>bot_first_attempt_date</code>, <code>bot_last_contacted_date</code>.</td></tr>
+            <tr><td>Attempts</td><td>Number of bot calls.</td><td><code>COUNT(vapi_call_id)</code>, failed calls included.</td><td><code>total_call_attempts</code>.</td></tr>
+            <tr><td>Connects</td><td>Number of answered, non-failed bot calls.</td><td><code>COUNTIF(is_failed_call = 0 AND webinar_call_status = 'answered')</code>.</td><td><code>total_connected_calls</code>.</td></tr>
+            <tr><td>1st connect / Last connect</td><td>First and latest answered bot call.</td><td>IST dates of the first / latest answered, non-failed call.</td><td><code>bot_first_connect_date</code>, <code>bot_last_connected_date</code>.</td></tr>
+            <tr><td>Bucket</td><td>Connection bucket.</td><td>As the filter.</td><td><code>bot_bucket</code>.</td></tr>
+            <tr><td>Lead status</td><td>The current HubSpot status (raw).</td><td>The latest Contacts row.</td><td><code>lead_status</code>.</td></tr>
+            <tr><td>Max-ans TAT</td><td>The time-to-first-connect bucket.</td><td>The raw view label, so all 11 view values can appear here even though the filter offers only two.</td><td><code>time_to_connect_bucket</code>.</td></tr>
+            <tr><td>Qual · VC booked · DCD · RTE · Sale</td><td>✓ when the flag is set (Qual in green).</td><td>As the matching filters.</td><td><code>bot_qualified</code>, <code>vc_scheduled_flag</code>/<code>vc_alt_scheduled_flag</code>, <code>dcd_flag</code>, <code>rte_flag</code>, <code>sale_flag</code>.</td></tr>
+            <tr><td>Judge verdict</td><td>The label of the peak call's verdict; blank if not judged.</td><td>agree → Judge agreed; disagree_wrongly_qualified → Wrongly qualified; disagree_wrongly_disqualified → Wrongly disqualified; needs_review → Needs human review; na → Not assessable.</td><td><code>classification_correctness_peak</code>.</td></tr>
+            <tr><td>⭳ Export CSV</td>
+              <td>Downloads every row that matches the filters and date range, across all pages.</td>
+              <td>Columns, in order: <code>lead_email</code>, <code>pod</code>, <code>pa</code>, <code>lead_status</code>, <code>connection_bucket</code>, <code>lead_date</code>, <code>first_attempt_date</code>, <code>last_attempt_date</code>, <code>total_attempts</code>, <code>connects</code>, <code>first_connect_date</code>, <code>last_connect_date</code>, <code>max_answers</code>, <code>max_answer_tat</code>, <code>qualified</code>, <code>disqualified</code>, <code>vc_booked</code>, <code>dcd</code>, <code>rte</code>, <code>sale</code>, <code>judge_verdict</code>. Dates are YYYY-MM-DD and flags 1/0; the verdict is exported as its label. Fields with a quote, comma or line break are quoted. The file is UTF-8 with a BOM and CRLF line ends, named <code>ik-bot-leads-{filtered|all}-{latest lead date in the build}.csv</code>. <code>pod</code>, <code>pa</code>, <code>max_answers</code> and <code>disqualified</code> are in the CSV but not on screen.</td>
+              <td><code>max_answers</code> = <code>best_questions_answered</code> (most questions answered on one non-failed call); <code>max_answer_tat</code> = <code>time_to_connect_bucket</code>; <code>disqualified</code> = has <code>disqualification_reason_peak</code>.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+  
+    <!-- ============================== 10 ============================== -->
+    <details id="howto-limits">
+      <summary>10 · Known limitations</summary>
+      <div class="body">
+        <p>These are current behaviours a reader should know about, each traced to the code or SQL. The first three were reviewed by the dashboard owner, who chose to leave them unchanged.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Limitation</th><th>What you will see</th><th>Why (exact logic)</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Time to first connect (owner-accepted)</td>
+              <td>Only "a: 0–5 min" and "Not Connected" ever appear. Every connected lead slower than 5 minutes is missing from the card, so its percentages are not a true distribution. The explorer's "Max-ans TAT" filter offers the same two options.</td>
+              <td>The view emits 10 buckets (<code>'a: 0–5 min'</code> … <code>'j: &gt; 24 hrs'</code>) plus <code>'Not Connected'</code>. The pipeline's <code>TTC</code> list still has the older 8 labels, and only exact text matches are counted.</td>
+              <td><code>time_to_connect_bucket</code>; <code>pipeline/build_data.py</code> list <code>TTC</code>.</td></tr>
+            <tr><td>Connected · ≥1 answer sparkline (owner-accepted)</td>
+              <td>The sparkline under this tile is flat at zero and does not track the tile.</td>
+              <td>It plots <code>flag_ans_1</code> ÷ leads. <code>flag_ans_1</code> = leads whose best answer count is exactly 1, not "≥1".</td>
+              <td><code>flag_ans_1</code>; <code>renderKPI()</code>.</td></tr>
+            <tr><td>"One denominator" header note (owner-accepted)</td>
+              <td>The note says every headline % is a share of Leads, but many tiles use another base.</td>
+              <td>See the per-tile list in §2. Also, the Trends charts use Leads while the qualified / disqualified tiles use Connected · ≥1 answer, so their levels are not comparable.</td>
+              <td>The note's static text in <code>dashboard/template.html</code> (<code>.denote</code>); the tile sub-lines in <code>renderKPI()</code>.</td></tr>
+            <tr><td>Partial last day &amp; immature cohorts</td>
+              <td>The newest lead day can be the refresh day itself, holding only the leads registered before that day's build ran. Recent days also keep gaining calls, answers, statuses and sales at every refresh.</td>
+              <td>The view has no upper limit on lead date, and the refresh runs at 10:00 IST (fallback 13:00 IST). Presets are anchored on the newest lead day, so "7d" includes it. Every metric is a lead-date cohort counted up to the refresh.</td>
+              <td><code>lead_date</code>; <code>idxRange()</code>.</td></tr>
+            <tr><td>HubSpot status lag (VC Done / VC attempted)</td>
+              <td>HubSpot statuses often update days after the VC slot. Recently booked leads, and for a past month many leads on its last day, can still show "VC scheduled", which inflates "+ still VC scheduled / alt" and delays VC Done and VC attempted.</td>
+              <td>These tiles read the Contacts sync log as of each row's <code>row_added_at</code> (IST) against the range end.</td>
+              <td><code>ik-marketing-data.Sales_Dashboard.contacts</code>.</td></tr>
+            <tr><td>Range end is the last lead day</td>
+              <td>Gated metrics stop at the last day <b>that has leads</b> in the window, not at the picked To date or today. On All, a HubSpot move dated after the newest lead day is not counted until a build whose newest lead day is on or after that move.</td>
+              <td><code>To = DAYS[ix[ix.length-1]]</code> in <code>patchGated()</code> / <code>renderFunnelTable()</code>.</td>
+              <td>—</td></tr>
+            <tr><td>Tiles vs their sparklines</td>
+              <td>The sparklines under VC Done, VC attempted, DCD, RTE and Sale do not show the tile's number by day. VC booked's sparkline shows standard slots only.</td>
+              <td>Sparklines read the ungated daily build values by lead date: raw <code>dcd_flag</code> / <code>rte_flag</code>, all sales (the Sale tile counts bot-funnel sales only), and VC Done / VC attempted as of the refresh rather than the range end.</td>
+              <td><code>sparkline()</code>.</td></tr>
+            <tr><td>Different "VC booked" bases</td>
+              <td>The VC booked tile, funnel-table column and outcome bars agree with each other. The explorer filter / column, the CSV <code>vc_booked</code> and the DCD/RTE "VC booked" edge use a broader basis, so the explorer and CSV can list more booked leads than the tile. The VC booked sparkline counts standard slots only.</td>
+              <td>The tile, table and bars use <code>phase2_outcome_peak</code> (the most recent bot-qualified outcome). The explorer, CSV and edge use <code>vc_scheduled_flag</code> OR <code>vc_alt_scheduled_flag</code> (any call ever); the edge also needs a verified slot date.</td>
+              <td><code>phase2_outcome_peak</code>, <code>vc_scheduled_flag</code>, <code>vc_alt_scheduled_flag</code>.</td></tr>
+            <tr><td>Peak = most recent bot-qualified outcome</td>
+              <td>A lead that booked a VC and was later re-called with, e.g., "Bot Qualified – Lead denied slot" leaves VC booked (and therefore VC Done / VC attempted) and moves to that outcome row.</td>
+              <td>Every <code>'%bot qualified%'</code> outcome has rank 1 and ties go to <code>created_at DESC</code>.</td>
+              <td><code>bot_summary.peak</code>.</td></tr>
+            <tr><td>VC Done is "moved on", not "VC held"</td>
+              <td>Any status change after the booking counts, including Not-interested and Junk. A real "VC done" status is grouped under "DCD + PSA Qualified".</td>
+              <td>See §3. With the fallback anchor (HubSpot never showed a VC status), the first non-VC, non-New status after 00:00 on the lead date counts, and it may predate the booking.</td>
+              <td><code>vc_moved_on()</code>, <code>vcd_group()</code>.</td></tr>
+            <tr><td>DCD / RTE "VC booked" splits overlap VC Done</td>
+              <td>A booked lead whose first post-booking status was Discovery call done can appear in both the DCD "VC booked" split / Bot DCD and VC Done (Bot Leads).</td>
+              <td>The splits judge "not done" by the view's older <code>vc_done_date</code> (status <code>'vc done'</code>, date-wise), not by the "moved on" rule. The "qualified" split = <code>max(0, qualified − edge)</code>, which assumes the edge is part of the qualified bucket; the edge itself does not check <code>dcd_flag</code> / <code>rte_flag</code>.</td>
+              <td><code>leadGate()</code>.</td></tr>
+            <tr><td>Lifetime HubSpot flags &amp; dates</td>
+              <td>DCD / RTE flags, their dates, <code>vc_done_date</code> and the current status cover the contact's whole history, not just this registration. A lead who reached DCD in an earlier cycle is flagged now.</td>
+              <td><code>MAX(...)</code> over all Contacts rows of the contact; the date is the <b>latest</b> matching row, so a later re-entry moves the date later and can push it past the range end.</td>
+              <td>View Steps 2–5; L10X <code>DCD_Flag</code> / <code>RTE_Flag</code>.</td></tr>
+            <tr><td>Status definitions differ between columns</td>
+              <td>"RTE" includes "Interested - Follow-up". "DCD flag" may miss leads that "Cur DCD" counts.</td>
+              <td>• L10X <code>DCD_Flag</code> matches only <code>'discovery call done'</code>, while <code>dcd_moved_date</code> and Cur DCD also accept <code>'Discovery_Call_Done'</code>.<br>• L10X <code>RTE_Flag</code> = <code>'%ready to enroll%'</code> OR <code>'%interested - follow-up%'</code>; Cur RTE = exactly <code>'Interested-Ready to enroll'</code>.<br>• The view's <code>rte_moved_date</code> adds <code>'%interested-ready%'</code> / <code>'%interested - ready%'</code>, while <code>rte_moved_date_fixed</code> uses <code>'%ready to enroll%'</code> / <code>'%interested - follow-up%'</code> / <code>'%interested-ready%'</code>.</td>
+              <td><code>ik-marketing-data.India_Leads.L10X_india_leads</code>, view Steps 3–4, <code>build_data.py</code>.</td></tr>
+            <tr><td>Mixed time zones</td>
+              <td>Day boundaries differ by metric.</td>
+              <td>• VC Done / VC attempted use IST dates (<code>row_added_at</code> + 5:30).<br>• The DCD / RTE / vc-done dates are UTC calendar dates (<code>DATE(row_added_at)</code>).<br>• VC slot dates are UTC dates of <code>verified_slot</code>.<br>• Bot and PA call dates are IST.<br>• Date labels use the viewer's local time zone: a viewer west of UTC sees each label one day early (IST viewers are unaffected).</td>
+              <td>§1 "Time zones".</td></tr>
+            <tr><td>Case-sensitive matching</td>
+              <td>Small differences in letter case or spacing can drop a lead from a flag or a group.</td>
+              <td>• L10X joins <code>DCD_Flag</code>, <code>RTE_Flag</code> and <code>PA_name</code> / <code>POD</code> on exact <code>hubspot_id = contact_id</code>.<br>• The view de-duplicates on the raw <code>lead_email</code> and groups Contacts / bot / PA data on the raw ids, but joins with <code>LOWER()</code>. Case variants of one email could create duplicate rows.<br>• <code>build_data.py</code> and the page match statuses and outcomes exactly: <code>'VC scheduled'</code>, the <code>'New'</code> prefix, the VC Done group lists, the "Bot Qualified – …" strings, the DQ categories, and Cur DCD / Cur RTE.<br>• <code>webinar_call_status = 'answered'</code> is exact.</td>
+              <td>View <code>lead_base</code>, Steps 2–8; L10X final joins.</td></tr>
+            <tr><td>Rolling window &amp; re-registration</td>
+              <td>"All" is not all history. It starts on the 1st of the month three months back, so a month disappears at each month change. A lead who registers again moves to the newer lead date, so older cohorts can shrink between refreshes.</td>
+              <td><code>lead_month &gt;= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH), MONTH)</code>; latest registration per <code>lead_email</code>.</td>
+              <td>View <code>lead_base</code>.</td></tr>
+            <tr><td>Qualified / disqualified don't nest</td>
+              <td>Bot qualified % + Bot disqualified % can exceed 100%, and a lead can be both.</td>
+              <td><code>bot_qualified</code> looks at every call, answered or not. The DQ reason comes from the peak call. Neither is restricted to "Connected · ≥1 answer", the tiles' base.</td>
+              <td><code>bot_qualified</code>, <code>disqualification_reason_peak</code>.</td></tr>
+            <tr><td>DQ card vs DQ tile</td>
+              <td>The Disqualification reasons card can show fewer leads than the Bot disqualified tile. With none in range, its header reads "1 leads…".</td>
+              <td>The card counts only the 8 known categories (first part before <code>' | '</code>); the tile counts any non-empty reason. The header uses <code>sum || 1</code>.</td>
+              <td><code>dq_category()</code>, <code>renderMixes()</code>.</td></tr>
+            <tr><td>Bot Evals bases</td>
+              <td>"Calls judged" can exceed "of N phase-2 calls". "Recorded phase-2 outcomes" omits judged disqualified leads. "Flagged" counts tagged leads whatever their verdict.</td>
+              <td>"Calls judged" counts every lead with a known verdict. N counts only peak outcomes in the pipeline <code>OUT</code> list, minus <code>'Not_Triggered'</code>. <code>'DISQUALIFIED'</code> is missing from <code>OUT</code>, so judged leads whose peak is <code>'DISQUALIFIED'</code> or <code>'Not_Triggered'</code> are in the judged count only. Tags are counted independently of <code>classification_correctness_peak</code>.</td>
+              <td><code>build_data.py</code> lists <code>OUT</code>, <code>EV</code>, <code>EVTAG</code>.</td></tr>
+            <tr><td>Cut-offs in tables</td>
+              <td>Some panels show only part of the data.</td>
+              <td>• Funnel stages by segment: first 20 rows, no totals.<br>• Qualification drivers and Pod / PA panels: segments with ≥20 leads, top 12. The Qualification drivers legend totals cover the shown rows only.</td>
+              <td><code>renderFunnelTable()</code>, <code>renderQualDrivers()</code>, <code>renderAttConn()</code>.</td></tr>
+            <tr><td>Explorer edge cases</td>
+              <td>A custom range that contains no lead day (possible only when the build has a calendar day with no leads, because the date inputs are bounded to the first and latest lead dates) makes the explorer list <b>all</b> leads while the other panels show zero. "Max-ans TAT" and the CSV <code>max_answer_tat</code> are really time to first connect.</td>
+              <td><code>filteredLeads()</code> skips the date filter when the window has no days.</td>
+              <td><code>time_to_connect_bucket</code>.</td></tr>
+            <tr><td>Empty CRM table</td>
+              <td>When the range and filter leave no leads, the footer shows Leads = 1 and 100%.</td>
+              <td>The total uses <code>sum || 1</code>.</td>
+              <td><code>renderCRM()</code>.</td></tr>
+            <tr><td>PA connect threshold &amp; caller</td>
+              <td>The legend says "≥120s", but a call of exactly 120 s is not a connect. Calls are not filtered by caller type, and "PA" is the assigned owner, not necessarily who dialled.</td>
+              <td><code>COUNTIF(duration &gt; 120)</code>; no caller filter on <code>call_metadata</code>.</td>
+              <td><code>pa_connects_120s</code>, <code>pa_name</code>.</td></tr>
+            <tr><td>"updated" pill &amp; failed refreshes</td>
+              <td>The pill shows when the build ran, not how fresh the source tables are. If a refresh fails, the previous build stays live with its old timestamp.</td>
+              <td><code>generated_at</code> = build time; the deploy step runs only after a successful build.</td>
+              <td><code>.github/workflows/refresh.yml</code>.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+  </div>
+
   <footer id="foot"></footer>
 </div>
 
@@ -406,6 +1135,7 @@ function renderKPI(){
     kpiTile('Bot disqualified',nf(t[X.dq]),`${pf(t[X.dq],connW)} of connected · ≥1 answer · with a disqualification reason`,sparkline(X.dq,true)),
     kpiTile('VC booked',nf(booked),`${pf(booked,q)} of qualified · VC scheduled + alt scheduled`,sparkline(X.vcS,false)),
     kpiTile('VC Done (Bot Leads)',nf(t[X.vcDoneBot]),`${pf(t[X.vcDoneBot],booked)} of VC booked · status moved past VC scheduled / New<div class="kpinote">${(M.vcdg||[]).map((g,i)=>`<div class="vcdg"><span>${esc(g)}</span><b class="num">${nf(t[X['vcdG'+i]])}</b></div>`).join('')}</div>`,sparkline(X.vcDoneBot,false)),
+    kpiTile('VC attempted, not done yet',nf(t[X.vcAtt]),`${pf(t[X.vcAtt],booked)} of VC booked · status back to New on the range end<div class="kpinote">${(M.vcn||[]).map((s,i)=>t[X['vcnG'+i]]?`<div class="vcdg"><span>${esc(s)}</span><b class="num">${nf(t[X['vcnG'+i]])}</b></div>`:'').join('')}<div class="vcdg"><span>+ still VC scheduled / alt on the range end</span><b class="num">${nf(t[X.vcSched])}</b></div></div>`,sparkline(X.vcAtt,false)),
     kpiTile('DCD flag',nf(t[X.dcdQ]+t[X.dcdDQ]),`${pf(t[X.dcdQ]+t[X.dcdDQ],L)} of leads · ${nf(Math.max(0,t[X.dcdQ]-t[X.vcEdgeDcd]))} qualified, ${nf(t[X.vcEdgeDcd])} VC booked, ${nf(t[X.dcdDQ])} disqualified`,sparkline(X.dcd,false)),
     kpiTile('RTE flag',nf(t[X.rteQ]+t[X.rteDQ]),`${pf(t[X.rteQ]+t[X.rteDQ],L)} of leads · ${nf(Math.max(0,t[X.rteQ]-t[X.vcEdgeRte]))} qualified, ${nf(t[X.vcEdgeRte])} VC booked, ${nf(t[X.rteDQ])} disqualified`,sparkline(X.rte,false)),
     kpiTile('Sale',nf(t[X.qSale]),`${pf(t[X.qSale],L)} of leads (bot funnel) · ${nf(t[X.sale]-t[X.qSale])} other (non-bot)`,sparkline(X.sale,false)),
@@ -784,12 +1514,19 @@ function leadGate(l, To){
   const qual=l[LC.qual], elig=l[LC.eligDq], vcb=l[LC.vcb];
   const by=(d)=>d==null?false:d<=To;          // event has a date AND it is on/before To
   const okOrNull=(d)=>d==null?true:d<=To;      // gate, or pass through when dateless (fallback)
-  const g={vcB:0,vcDone:0,vcDoneBot:0,vcdG0:0,vcdG1:0,vcdG2:0,vcdG3:0,dcdQ:0,dcdDQ:0,rteQ:0,rteDQ:0,eDcd:0,eRte:0};
+  const g={vcB:0,vcDone:0,vcDoneBot:0,vcdG0:0,vcdG1:0,vcdG2:0,vcdG3:0,vcAtt:0,vcSched:0,
+    vcnG0:0,vcnG1:0,vcnG2:0,vcnG3:0,vcnG4:0,vcnG5:0,dcdQ:0,dcdDQ:0,rteQ:0,rteDQ:0,eDcd:0,eRte:0};
   if(vcb) g.vcB=1;                                                     // VC booked = every booking made in the window (ungated by slot date; the "has it happened yet" gate lives on VC done)
   if(by(vd)) g.vcDone=1;                                              // any VC done, by To
   // VC Done (Bot Leads): VC booked (peak outcome) AND its Contacts status moved on (not VC
   // scheduled / alt / New*) by To. The move is always on/after the lead date, so >= From holds.
   if(l[LC.vcbPeak] && by(l[LC.vcdDay])){ g.vcDoneBot=1; g['vcdG'+l[LC.vcdGrp]]=1; }
+  else if(l[LC.vcbPeak]){
+    // VC attempted, not done yet: booked, not done by To, and the status in force ON To is New*
+    // (timeline code >= 1); still VC scheduled / alt on To (or not yet in HubSpot) = upcoming.
+    let code=0; for(const [d,c] of (l[LC.vcTl]||[])){ if(d>To) break; code=c; }
+    if(code){ g.vcAtt=1; g['vcnG'+(code-1)]=1; } else g.vcSched=1;
+  }
   const doneBot = (slot!=null && vd!=null && vd>=slot && vd<=To);      // date-wise VC done: scopes the DCD/RTE edge only
   if(l[LC.dcd] && okOrNull(dd)){ if(qual) g.dcdQ=1; else if(elig) g.dcdDQ=1; }  // DCD bot-funnel
   if(l[LC.rte] && okOrNull(rd)){ if(qual) g.rteQ=1; else if(elig) g.rteDQ=1; }  // RTE bot-funnel
@@ -801,7 +1538,8 @@ function leadGate(l, To){
 }
 // Overall gated totals across leads whose formatted date is in [From,To].
 function gatedFromTo(From,To){
-  const G={vcB:0,vcDone:0,vcDoneBot:0,vcdG0:0,vcdG1:0,vcdG2:0,vcdG3:0,dcdQ:0,dcdDQ:0,rteQ:0,rteDQ:0,eDcd:0,eRte:0};
+  const G={vcB:0,vcDone:0,vcDoneBot:0,vcdG0:0,vcdG1:0,vcdG2:0,vcdG3:0,vcAtt:0,vcSched:0,
+    vcnG0:0,vcnG1:0,vcnG2:0,vcnG3:0,vcnG4:0,vcnG5:0,dcdQ:0,dcdDQ:0,rteQ:0,rteDQ:0,eDcd:0,eRte:0};
   for(const l of LEADS){ const d=l[LC.date]; if(d<From||d>To) continue;
     const g=leadGate(l,To); for(const k in G) G[k]+=g[k]; }
   return G;
@@ -814,6 +1552,8 @@ function patchGated(t, ix){
   // to the "Qualified — what happens next" panel. VC done / DCD / RTE keep their event-date gate.
   t[X.vcDone]=G.vcDone; t[X.vcDoneBot]=G.vcDoneBot;
   for(let i=0;i<4;i++) t[X['vcdG'+i]]=G['vcdG'+i];
+  t[X.vcAtt]=G.vcAtt; t[X.vcSched]=G.vcSched;
+  for(let i=0;i<6;i++) t[X['vcnG'+i]]=G['vcnG'+i];
   t[X.dcdQ]=G.dcdQ; t[X.dcdDQ]=G.dcdDQ; t[X.rteQ]=G.rteQ; t[X.rteDQ]=G.rteDQ;
   t[X.vcEdgeDcd]=G.eDcd; t[X.vcEdgeRte]=G.eRte;
   return t;
