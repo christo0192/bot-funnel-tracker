@@ -276,7 +276,8 @@ def main():
         if r["phase2_outcome"] not in VC_BOOKED_PO or not r["lead_email"]:
             continue
         hs = status_hist.get(r["lead_email"].lower(), [])
-        anchor_vc = next((ts for ts, st in hs if st in VC_STATUSES and ts.date() >= r["lead_date"]), None)
+        anchor_vc = next((ts for ts, st in hs
+                          if (st or "").strip() in VC_STATUSES and ts.date() >= r["lead_date"]), None)
         anchor = anchor_vc or dt.datetime.combine(r["lead_date"], dt.time())
         moved = next(((ts, st) for ts, st in hs if ts > anchor and vc_moved_on(st)), None)
         key = (r["lead_email"], r["lead_date"])
@@ -290,7 +291,7 @@ def main():
                 continue
             if moved and ts >= moved[0]:
                 break
-            code = 0 if st in VC_STATUSES else vcn_code(st)
+            code = 0 if st.strip() in VC_STATUSES else vcn_code(st)  # trimmed, like vc_moved_on()
             if tl and tl[-1][0] == ts.date():
                 tl.pop()
             if not tl or tl[-1][1] != code:
